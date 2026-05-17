@@ -29,15 +29,15 @@
 
 |Feature                    |Status   |Notes                                               |
 |---------------------------|---------|----------------------------------------------------|
-|Private dev repo setup     |📋 Planned|glycoGuard-dev, WSL2/VSCode workflow                |
-|Firebase project setup     |📋 Planned|Auth + Firestore + Storage                          |
-|User authentication        |📋 Planned|Email/password first, Google + Apple later          |
-|Child profile (create/edit)|📋 Planned|Name, DOB, diagnosis, glucose targets, meal interval|
-|Manual glucose logging     |📋 Planned|Fingerprick, CGM manual, lab — mmol/L and mg/dL     |
-|Symptom logging            |📋 Planned|Quick-tap common symptoms + open text/voice field   |
-|Feed timer (functional)    |📋 Planned|Based on last logged meal, push notifications       |
-|Meal logging (manual)      |📋 Planned|Text description, timestamp, manual macro entry     |
-|Basic glucose history view |📋 Planned|List + simple chart                                 |
+|Private dev repo setup     |✅ Done  |glycoGuard-dev, WSL2/VSCode workflow                |
+|Firebase project setup     |✅ Done  |Auth + Firestore + Storage                          |
+|User authentication        |✅ Done  |Email/password login with auth guard                |
+|Child profile (create/edit)|✅ Done  |Name, DOB, diagnosis, glucose targets, meal interval|
+|Manual glucose logging     |✅ Done  |Fingerprick/manual readings stored in Firestore     |
+|Symptom logging            |✅ Done  |Quick-tap symptoms + note capture                   |
+|Feed timer (functional)    |✅ Done  |Based on last logged meal; push notifications pending|
+|Meal logging (manual)      |✅ Done  |Text description, timestamp, manual macro entry     |
+|Basic glucose history view |✅ Done  |List view available under Glucose history screen    |
 |mmol/L ↔ mg/dL toggle      |📋 Planned|User feedback item — global unit preference         |
 
 -----
