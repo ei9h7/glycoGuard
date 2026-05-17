@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { collection, query, orderBy, limit, onSnapshot, addDoc, serverTimestamp } from "firebase/firestore";
 import { db, auth } from "../firebase";
 import { useChild } from "../hooks/useChild";
+import { useUnits } from "../hooks/useUnits";
 import LogMealModal from "../components/LogMealModal";
 import LogGlucoseModal from "../components/LogGlucoseModal";
 
@@ -45,7 +46,7 @@ function fmtDate(ts) {
   return d.toLocaleDateString([], { month:"short", day:"numeric" });
 }
 
-function GlucoseRing({ value, min = 4.0, max = 6.5 }) {
+function GlucoseRing({ value, min = 4.0, max = 6.5, fmt, displayUnit }) {
   const R = 42, cx = 50, cy = 50, circ = 2 * Math.PI * R;
   const pct = Math.max(0, Math.min(1, (value - 2.5) / 5.5));
   const color = value < 3.5 ? "#ef4444" : value < min ? "#f59e0b" : value <= max ? "#22c55e" : "#f59e0b";
@@ -58,8 +59,8 @@ function GlucoseRing({ value, min = 4.0, max = 6.5 }) {
           style={{ transition:"stroke-dasharray 0.8s ease" }}/>
       </svg>
       <div style={{ position:"absolute", inset:0, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center" }}>
-        <span style={{ fontFamily:"'DM Serif Display',serif", fontSize:26, lineHeight:1, color }}>{value.toFixed(1)}</span>
-        <span style={{ fontSize:10, color:"#7a8fa6", marginTop:2 }}>mmol/L</span>
+        <span style={{ fontFamily:"'DM Serif Display',serif", fontSize:26, lineHeight:1, color }}>{fmt(value)}</span>
+        <span style={{ fontSize:10, color:"#7a8fa6", marginTop:2 }}>{displayUnit}</span>
       </div>
     </div>
   );
@@ -68,6 +69,7 @@ function GlucoseRing({ value, min = 4.0, max = 6.5 }) {
 export default function Home() {
   const navigate = useNavigate();
   const { child, childId } = useChild();
+  const { fmt, displayUnit } = useUnits();
   const [now, setNow] = useState(Date.now());
   const [showMealModal, setShowMealModal] = useState(false);
   const [showGlucoseModal, setShowGlucoseModal] = useState(false);
@@ -291,7 +293,7 @@ export default function Home() {
         {/* Glucose card */}
         <div style={s.card}>
           {gVal
-            ? <GlucoseRing value={gVal} min={glucoseMin} max={glucoseMax}/>
+            ? <GlucoseRing value={gVal} min={glucoseMin} max={glucoseMax} fmt={fmt} displayUnit={displayUnit}/>
             : <div style={s.glucosePlaceholder}>🩸</div>
           }
           <div style={{ flex:1 }}>
@@ -302,7 +304,7 @@ export default function Home() {
                 : "No glucose readings yet"}
             </div>
             <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
-              <span style={s.pill}>Target {glucoseMin}–{glucoseMax}</span>
+              <span style={s.pill}>Target {fmt(glucoseMin)}–{fmt(glucoseMax)} {displayUnit}</span>
               <span style={s.pill}>{child?.diagnosis || "Hypoglycemia"}</span>
             </div>
           </div>
@@ -403,7 +405,7 @@ export default function Home() {
                   {item.type==="meal" && (item.descriptionText || "Meal logged")}
                   {item.type==="glucose" && (
                     <span style={{ fontFamily:"'DM Serif Display',serif", fontSize:20, color:"#f59e0b" }}>
-                      {item.value} <small style={{ fontSize:11, color:"#7a8fa6" }}>mmol/L</small>
+                      {fmt(item.value)} <small style={{ fontSize:11, color:"#7a8fa6" }}>{displayUnit}</small>
                     </span>
                   )}
                   {item.type==="symptom" && [

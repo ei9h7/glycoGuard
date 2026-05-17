@@ -38,7 +38,8 @@
 |Feed timer (functional)    |✅ Done  |Based on last logged meal; push notifications pending|
 |Meal logging (manual)      |✅ Done  |Text description, timestamp, manual macro entry     |
 |Basic glucose history view |✅ Done  |List view available under Glucose history screen    |
-|mmol/L ↔ mg/dL toggle      |📋 Planned|User feedback item — global unit preference         |
+|mmol/L ↔ mg/dL toggle      |✅ Done   |User feedback item — global unit preference, toggle in Settings|
+|Meal history view           |✅ Done   |List view, stats strip, period selector             |
 
 -----
 
