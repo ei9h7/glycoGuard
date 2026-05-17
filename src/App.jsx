@@ -8,11 +8,12 @@ import Register   from "./screens/auth/Register";
 import ChildSetup from "./screens/auth/ChildSetup";
 
 // App screens
-import Home     from "./screens/Home";
-import Meals    from "./screens/Meals";
-import Reports  from "./screens/Reports";
-import AI       from "./screens/AI";
-import Settings from "./screens/Settings";
+import Home          from "./screens/Home";
+import Meals         from "./screens/Meals";
+import Reports       from "./screens/Reports";
+import AI            from "./screens/AI";
+import Settings      from "./screens/Settings";
+import GlucoseHistory from "./screens/GlucoseHistory";
 
 // Layout
 import AppShell from "./components/AppShell";
@@ -57,6 +58,7 @@ export default function App() {
         <Route path="reports"  element={<Reports />} />
         <Route path="ai"       element={<AI />} />
         <Route path="settings" element={<Settings />} />
+        <Route path="glucose"  element={<GlucoseHistory />} />
       </Route>
 
       {/* Fallback */}
