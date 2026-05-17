@@ -4,6 +4,7 @@ import { signOut } from "firebase/auth";
 import { db, auth } from "../firebase";
 import { useChild } from "../hooks/useChild";
 import { useAuth } from "../hooks/useAuth";
+import { useUnits } from "../hooks/useUnits";
 
 const CGM_OPTIONS = [
   "None / Not using CGM",
@@ -27,6 +28,7 @@ const DIAGNOSIS_OPTIONS = [
 export default function Settings() {
   const { user } = useAuth();
   const { child, childId } = useChild();
+  const { unit, setUnit } = useUnits();
 
   const [editing,  setEditing]  = useState(false);
   const [saving,   setSaving]   = useState(false);
@@ -202,6 +204,34 @@ export default function Settings() {
         </div>
       )}
 
+      {/* Display preferences */}
+      <div style={s.sectionHead}>
+        <span style={s.sectionTitle}>Display</span>
+      </div>
+
+      <div style={{ padding: "0 16px" }}>
+        <div style={s.card}>
+          <div style={{ ...s.detailRow, borderBottom: "none", paddingBottom: 0 }}>
+            <span style={{ fontSize: 16 }}>📏</span>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 8 }}>Glucose units</div>
+              <div style={{ display: "flex", gap: 8 }}>
+                {[["mmol", "mmol/L"], ["mgdl", "mg/dL"]].map(([val, label]) => (
+                  <button key={val}
+                    style={{
+                      ...s.unitBtn,
+                      ...(unit === val ? s.unitBtnActive : {}),
+                    }}
+                    onClick={() => setUnit(val)}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Account section */}
       <div style={s.sectionHead}>
         <span style={s.sectionTitle}>Account</span>
@@ -233,7 +263,6 @@ export default function Settings() {
           ["👨‍👩‍👧", "Co-parent sharing",     "Invite a co-parent and set data permissions"],
           ["➕",    "Add another child",     "Support for multiple children"],
           ["🔔",    "Notification settings", "Customise alerts and reminders"],
-          ["📏",    "Unit preference",       "Switch between mmol/L and mg/dL"],
         ].map(([icon, title, desc]) => (
           <div key={title} style={{ ...s.card, opacity:0.5 }}>
             <div style={s.detailRow}>
@@ -270,4 +299,6 @@ const s = {
   btnSecondary:{ flex:1, background:"transparent", color:"#e8dcc8", border:"1px solid rgba(255,255,255,0.08)", borderRadius:10, padding:"11px", fontSize:13, cursor:"pointer", fontFamily:"'DM Sans',sans-serif" },
   error:       { fontSize:13, color:"#ef4444", marginBottom:10 },
   signOutBtn:  { width:"100%", padding:"12px", borderRadius:12, background:"rgba(239,68,68,0.1)", border:"1px solid rgba(239,68,68,0.2)", color:"#fca5a5", fontSize:14, fontWeight:600, cursor:"pointer", fontFamily:"'DM Sans',sans-serif" },
+  unitBtn:     { flex:1, padding:"8px 0", borderRadius:10, border:"1px solid rgba(255,255,255,0.08)", background:"rgba(255,255,255,0.04)", color:"#7a8fa6", fontSize:13, fontWeight:600, cursor:"pointer", fontFamily:"'DM Sans',sans-serif" },
+  unitBtnActive:{ background:"rgba(245,158,11,0.15)", borderColor:"rgba(245,158,11,0.4)", color:"#f59e0b" },
 };

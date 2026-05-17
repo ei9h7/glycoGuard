@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
 import { db, auth } from "../firebase";
 import { useChild } from "../hooks/useChild";
+import { useUnits } from "../hooks/useUnits";
 
 const PERIODS = [
   { label: "24h",  days: 1  },
@@ -42,7 +43,7 @@ function getStatus(value, min, max) {
 }
 
 // ── Mini sparkline chart ──────────────────────────────────────────────────────
-function GlucoseChart({ readings, min, max }) {
+function GlucoseChart({ readings, min, max, fmt }) {
   if (readings.length < 2) return (
     <div style={{ height:140, display:"flex", alignItems:"center", justifyContent:"center", color:"#7a8fa6", fontSize:13 }}>
       Not enough data to display chart — log more readings.
@@ -101,8 +102,8 @@ function GlucoseChart({ readings, min, max }) {
       />
 
       {/* Target band labels */}
-      <text x={PAD.left - 4} y={bandTop + 4}    fontSize="8" fill="#22c55e" textAnchor="end">{max}</text>
-      <text x={PAD.left - 4} y={bandBottom + 1}  fontSize="8" fill="#22c55e" textAnchor="end">{min}</text>
+      <text x={PAD.left - 4} y={bandTop + 4}    fontSize="8" fill="#22c55e" textAnchor="end">{fmt(max)}</text>
+      <text x={PAD.left - 4} y={bandBottom + 1}  fontSize="8" fill="#22c55e" textAnchor="end">{fmt(min)}</text>
 
       {/* Grid lines */}
       {[3.5, 5.0, 7.0, 10.0].map(v => (
@@ -140,7 +141,7 @@ function GlucoseChart({ readings, min, max }) {
 }
 
 // ── Stats strip ───────────────────────────────────────────────────────────────
-function StatsStrip({ readings, min, max }) {
+function StatsStrip({ readings, min, max, fmt, displayUnit }) {
   if (readings.length === 0) return null;
 
   const values  = readings.map(r => r.value);
@@ -154,10 +155,10 @@ function StatsStrip({ readings, min, max }) {
   return (
     <div style={s.statsStrip}>
       {[
-        ["Avg",      avg.toFixed(1),        "#f59e0b", "mmol/L"],
-        ["Time in range", `${tir}%`,         tirColor,  `${inRange}/${values.length} readings`],
-        ["High",     highest.toFixed(1),    getColor(highest, min, max), "mmol/L"],
-        ["Low",      lowest.toFixed(1),     getColor(lowest, min, max),  "mmol/L"],
+        ["Avg",           fmt(avg),       "#f59e0b",                     displayUnit],
+        ["Time in range", `${tir}%`,      tirColor,                      `${inRange}/${values.length} readings`],
+        ["High",          fmt(highest),   getColor(highest, min, max),   displayUnit],
+        ["Low",           fmt(lowest),    getColor(lowest, min, max),    displayUnit],
       ].map(([label, value, color, sub]) => (
         <div key={label} style={s.statItem}>
           <div style={{ fontSize:10, color:"#7a8fa6", marginBottom:3, textTransform:"uppercase", letterSpacing:"0.6px" }}>{label}</div>
@@ -172,6 +173,7 @@ function StatsStrip({ readings, min, max }) {
 // ── Main screen ───────────────────────────────────────────────────────────────
 export default function GlucoseHistory() {
   const { child, childId } = useChild();
+  const { fmt, displayUnit } = useUnits();
   const [allReadings, setAllReadings] = useState([]);
   const [period,      setPeriod]      = useState(1); // days
   const [loading,     setLoading]     = useState(true);
@@ -214,7 +216,7 @@ export default function GlucoseHistory() {
       <div style={s.header}>
         <div style={s.logo}>Glucose History</div>
         <div style={{ fontSize:11, color:"#7a8fa6" }}>
-          Target {glucoseMin}–{glucoseMax} mmol/L
+          Target {fmt(glucoseMin)}–{fmt(glucoseMax)} {displayUnit}
         </div>
       </div>
 
@@ -242,7 +244,7 @@ export default function GlucoseHistory() {
       ) : (
         <>
           {/* Stats */}
-          <StatsStrip readings={filtered} min={glucoseMin} max={glucoseMax}/>
+          <StatsStrip readings={filtered} min={glucoseMin} max={glucoseMax} fmt={fmt} displayUnit={displayUnit}/>
 
           {/* Chart */}
           <div style={s.chartCard}>
@@ -282,7 +284,7 @@ export default function GlucoseHistory() {
               );
             })()}
 
-            <GlucoseChart readings={filtered} min={glucoseMin} max={glucoseMax}/>
+            <GlucoseChart readings={filtered} min={glucoseMin} max={glucoseMax} fmt={fmt}/>
           </div>
 
           {/* Reading list grouped by date */}
@@ -304,9 +306,9 @@ export default function GlucoseHistory() {
                       <div style={{ flex:1 }}>
                         <div style={{ display:"flex", alignItems:"baseline", gap:6 }}>
                           <span style={{ fontFamily:"'DM Serif Display',serif", fontSize:22, color }}>
-                            {r.value}
+                            {fmt(r.value)}
                           </span>
-                          <span style={{ fontSize:11, color:"#7a8fa6" }}>mmol/L</span>
+                          <span style={{ fontSize:11, color:"#7a8fa6" }}>{displayUnit}</span>
                           <span style={{ fontSize:11, color, marginLeft:2 }}>· {status}</span>
                         </div>
                         <div style={{ fontSize:11, color:"#7a8fa6", marginTop:2 }}>
