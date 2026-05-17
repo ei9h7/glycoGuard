@@ -5,6 +5,7 @@ import { db, auth } from "../firebase";
 import { useChild } from "../hooks/useChild";
 import { useAuth } from "../hooks/useAuth";
 import { useUnits } from "../hooks/useUnits";
+import { usePreferenceNotes } from "../hooks/usePreferenceNotes";
 
 const CGM_OPTIONS = [
   "None / Not using CGM",
@@ -29,11 +30,14 @@ export default function Settings() {
   const { user } = useAuth();
   const { child, childId } = useChild();
   const { unit, setUnit } = useUnits();
+  const { notes, loading: notesLoading, addNote, removeNote } = usePreferenceNotes();
 
-  const [editing,  setEditing]  = useState(false);
-  const [saving,   setSaving]   = useState(false);
-  const [saved,    setSaved]    = useState(false);
-  const [error,    setError]    = useState("");
+  const [editing,    setEditing]    = useState(false);
+  const [saving,     setSaving]     = useState(false);
+  const [saved,      setSaved]      = useState(false);
+  const [error,      setError]      = useState("");
+  const [noteText,   setNoteText]   = useState("");
+  const [noteAdding, setNoteAdding] = useState(false);
 
   const [form, setForm] = useState(null);
 
@@ -88,6 +92,17 @@ export default function Settings() {
 
   const handleSignOut = async () => {
     await signOut(auth);
+  };
+
+  const handleAddNote = async () => {
+    if (!noteText.trim()) return;
+    setNoteAdding(true);
+    try {
+      await addNote(noteText);
+      setNoteText("");
+    } finally {
+      setNoteAdding(false);
+    }
   };
 
   if (!child) return (
@@ -232,6 +247,46 @@ export default function Settings() {
         </div>
       </div>
 
+      {/* Preference Notes */}
+      <div style={s.sectionHead}>
+        <span style={s.sectionTitle}>AI Context Notes</span>
+      </div>
+
+      <div style={{ padding: "0 16px" }}>
+        <div style={s.card}>
+          <div style={{ fontSize: 12, color: "#7a8fa6", marginBottom: 12, lineHeight: 1.5 }}>
+            Notes saved here give the AI assistant context about {child.name} — food preferences, known triggers, clinical observations.
+          </div>
+
+          <textarea
+            style={{ ...s.input, resize: "none", height: 80, paddingTop: 10, boxSizing: "border-box" }}
+            placeholder={`e.g. ${child.name} refuses dairy. Tends to crash after juice.`}
+            value={noteText}
+            onChange={(e) => setNoteText(e.target.value)}
+          />
+          <button
+            style={{ ...s.btn, marginTop: 8, width: "100%", opacity: noteText.trim() ? 1 : 0.45 }}
+            disabled={!noteText.trim() || noteAdding}
+            onClick={handleAddNote}
+          >
+            {noteAdding ? "Saving…" : "Save note"}
+          </button>
+
+          {notesLoading ? (
+            <div style={{ fontSize: 12, color: "#7a8fa6", marginTop: 14 }}>Loading…</div>
+          ) : notes.length > 0 && (
+            <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)", marginTop: 14, paddingTop: 12, display: "flex", flexDirection: "column", gap: 8 }}>
+              {notes.map(note => (
+                <div key={note.id} style={s.noteRow}>
+                  <div style={{ flex: 1, fontSize: 13, color: "#e8dcc8", lineHeight: 1.5 }}>{note.content}</div>
+                  <button style={s.deleteBtn} onClick={() => removeNote(note.id)} aria-label="Delete note">✕</button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* Account section */}
       <div style={s.sectionHead}>
         <span style={s.sectionTitle}>Account</span>
@@ -301,4 +356,6 @@ const s = {
   signOutBtn:  { width:"100%", padding:"12px", borderRadius:12, background:"rgba(239,68,68,0.1)", border:"1px solid rgba(239,68,68,0.2)", color:"#fca5a5", fontSize:14, fontWeight:600, cursor:"pointer", fontFamily:"'DM Sans',sans-serif" },
   unitBtn:     { flex:1, padding:"8px 0", borderRadius:10, border:"1px solid rgba(255,255,255,0.08)", background:"rgba(255,255,255,0.04)", color:"#7a8fa6", fontSize:13, fontWeight:600, cursor:"pointer", fontFamily:"'DM Sans',sans-serif" },
   unitBtnActive:{ background:"rgba(245,158,11,0.15)", borderColor:"rgba(245,158,11,0.4)", color:"#f59e0b" },
+  noteRow:     { display:"flex", alignItems:"flex-start", gap:10, padding:"8px 12px", background:"rgba(255,255,255,0.03)", borderRadius:10, border:"1px solid rgba(255,255,255,0.05)" },
+  deleteBtn:   { background:"none", border:"none", color:"#7a8fa6", fontSize:14, cursor:"pointer", padding:"2px 4px", lineHeight:1, flexShrink:0, fontFamily:"'DM Sans',sans-serif" },
 };
