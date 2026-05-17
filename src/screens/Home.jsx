@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { collection, query, orderBy, limit, onSnapshot, addDoc, serverTimestamp } from "firebase/firestore";
 import { db, auth } from "../firebase";
 import { useChild } from "../hooks/useChild";
@@ -65,6 +66,7 @@ function GlucoseRing({ value, min = 4.0, max = 6.5 }) {
 }
 
 export default function Home() {
+  const navigate = useNavigate();
   const { child, childId } = useChild();
   const [now, setNow] = useState(Date.now());
   const [showMealModal, setShowMealModal] = useState(false);
@@ -280,9 +282,9 @@ export default function Home() {
         {/* Live Status */}
         <div style={s.sectionHead}>
           <span style={s.sectionTitle}>Live Status</span>
-          <div style={{ display:"flex", gap:12 }}>
+          <div style={{ display:"flex", gap:12, alignItems:"center" }}>
             <button style={s.sectionBtn} onClick={() => setShowGlucoseModal(true)}>+ Glucose</button>
-            <button style={s.sectionBtn} onClick={() => setShowMealModal(true)}>+ Meal</button>
+            <button style={s.sectionBtn} onClick={() => navigate("/glucose")}>History</button>
           </div>
         </div>
 
