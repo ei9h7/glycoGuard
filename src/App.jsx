@@ -1,9 +1,11 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "./hooks/useAuth";
+import { useChild } from "./hooks/useChild";
 
 // Auth screens
-import Login    from "./screens/auth/Login";
-import Register from "./screens/auth/Register";
+import Login      from "./screens/auth/Login";
+import Register   from "./screens/auth/Register";
+import ChildSetup from "./screens/auth/ChildSetup";
 
 // App screens
 import Home     from "./screens/Home";
@@ -21,6 +23,13 @@ function ProtectedRoute({ children }) {
   return user ? children : <Navigate to="/login" replace />;
 }
 
+function ChildGuard({ children }) {
+  const { user, loading: authLoading } = useAuth();
+  const { child, loading: childLoading } = useChild();
+  if (authLoading || childLoading) return <div style={{ background:"#0f1f35", height:"100vh" }} />;
+  return child ? children : <Navigate to="/setup" replace />;
+}
+
 export default function App() {
   return (
     <Routes>
@@ -28,16 +37,25 @@ export default function App() {
       <Route path="/login"    element={<Login />} />
       <Route path="/register" element={<Register />} />
 
-      {/* Protected app */}
+      {/* Child setup — protected but pre-child */}
+      <Route path="/setup" element={
+        <ProtectedRoute>
+          <ChildSetup />
+        </ProtectedRoute>
+      } />
+
+      {/* Protected app — requires auth + child profile */}
       <Route path="/" element={
         <ProtectedRoute>
-          <AppShell />
+          <ChildGuard>
+            <AppShell />
+          </ChildGuard>
         </ProtectedRoute>
       }>
-        <Route index          element={<Home />} />
-        <Route path="meals"   element={<Meals />} />
-        <Route path="reports" element={<Reports />} />
-        <Route path="ai"      element={<AI />} />
+        <Route index           element={<Home />} />
+        <Route path="meals"    element={<Meals />} />
+        <Route path="reports"  element={<Reports />} />
+        <Route path="ai"       element={<AI />} />
         <Route path="settings" element={<Settings />} />
       </Route>
 
