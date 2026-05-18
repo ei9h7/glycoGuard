@@ -29,24 +29,40 @@ GlycoGuard was built out of that gap, by a parent living it.
 
 ## Current Status
 
-This repository contains the **public prototype** — an interactive demonstration of the intended experience and design direction.
+This repository contains the **public prototype** — an interactive demonstration of the intended experience and design direction. The private development build is significantly further ahead.
+
+### Public prototype
 
 |Feature                          |Status          |
 |---------------------------------|----------------|
-|UI prototype                     |✅ Live          |
-|Symptom logging                  |🔨 In development|
-|Manual glucose logging           |🔨 In development|
-|User authentication              |🔨 In development|
-|Cloud data storage               |🔨 In development|
-|Child profile management         |🔨 In development|
-|Meal planning                    |🔨 In development|
-|AI meal photo analysis           |📋 Planned       |
-|CGM integration (FreeStyle Libre)|📋 Planned       |
-|AI assistant (live data)         |📋 Planned       |
-|Co-parent sync                   |📋 Planned       |
-|Medical report export            |📋 Planned       |
-|Grocery API (Instacart)          |📋 Planned       |
-|iOS / Android native app         |📋 Planned       |
+|UI prototype (all 5 screens)     |✅ Live          |
+|Feedback form integration        |✅ Live          |
+
+### Development build
+
+|Feature                          |Status           |
+|---------------------------------|-----------------|
+|User authentication              |✅ Built          |
+|Child profile management         |✅ Built          |
+|Manual glucose logging           |✅ Built          |
+|Symptom logging                  |✅ Built          |
+|Meal logging                     |✅ Built          |
+|Feed timer (live countdown)      |✅ Built          |
+|Glucose history + chart          |✅ Built          |
+|Meal history                     |✅ Built          |
+|mmol/L ↔ mg/dL unit toggle       |✅ Built          |
+|Vector store (Pinecone + Voyage) |✅ Built          |
+|Free-text preference notes       |✅ Built          |
+|PDF upload (lab results, letters)|✅ Built          |
+|AI assistant with live context   |✅ Built          |
+|AI meal recommendations          |🔨 Partial — covered by assistant; dedicated screen planned|
+|AI meal photo analysis           |📋 Planned        |
+|Proactive alerts                 |📋 Planned        |
+|CGM integration (FreeStyle Libre)|📋 Planned        |
+|Co-parent sync                   |📋 Planned        |
+|Medical report export            |📋 Planned        |
+|Grocery API (Instacart)          |📋 Planned        |
+|iOS / Android native app         |📋 Planned        |
 
 -----
 
