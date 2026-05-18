@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { collection, query, orderBy, limit, onSnapshot, addDoc, serverTimestamp } from "firebase/firestore";
 import { db, auth } from "../firebase";
+import { upsertVector } from "../services/vectorStore";
 import { useChild } from "../hooks/useChild";
 import { useUnits } from "../hooks/useUnits";
 import LogMealModal from "../components/LogMealModal";
@@ -156,7 +157,7 @@ export default function Home() {
     setSavingSymptoms(true);
     try {
       const userId = auth.currentUser.uid;
-      await addDoc(
+      const ref = await addDoc(
         collection(db, "users", userId, "children", childId, "symptomEvents"),
         {
           timestamp:        serverTimestamp(),
@@ -166,6 +167,19 @@ export default function Home() {
           glucoseAtTime:    lastGlucose?.value || null,
         }
       );
+      if (obsText.trim()) {
+        try {
+          await upsertVector({
+            id:      ref.id,
+            content: obsText.trim(),
+            userId,
+            childId,
+            type:    "clinical_observation",
+          });
+        } catch (err) {
+          console.error("Vector upsert failed (symptom event saved to Firestore):", err);
+        }
+      }
       setActiveSymptoms([]);
       setObsText("");
       setSymptomSaved(true);

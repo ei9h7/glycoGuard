@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { signOut } from "firebase/auth";
 import { db, auth } from "../firebase";
@@ -6,6 +6,7 @@ import { useChild } from "../hooks/useChild";
 import { useAuth } from "../hooks/useAuth";
 import { useUnits } from "../hooks/useUnits";
 import { usePreferenceNotes } from "../hooks/usePreferenceNotes";
+import { useDocuments } from "../hooks/useDocuments";
 
 const CGM_OPTIONS = [
   "None / Not using CGM",
@@ -31,6 +32,10 @@ export default function Settings() {
   const { child, childId } = useChild();
   const { unit, setUnit } = useUnits();
   const { notes, loading: notesLoading, addNote, removeNote } = usePreferenceNotes();
+  const { documents, loading: docsLoading, uploadDocument, removeDocument } = useDocuments();
+
+  const labInputRef    = useRef(null);
+  const letterInputRef = useRef(null);
 
   const [editing,    setEditing]    = useState(false);
   const [saving,     setSaving]     = useState(false);
@@ -38,6 +43,7 @@ export default function Settings() {
   const [error,      setError]      = useState("");
   const [noteText,   setNoteText]   = useState("");
   const [noteAdding, setNoteAdding] = useState(false);
+  const [uploading,  setUploading]  = useState(null); // 'lab_result' | 'provider_note' | null
 
   const [form, setForm] = useState(null);
 
@@ -92,6 +98,20 @@ export default function Settings() {
 
   const handleSignOut = async () => {
     await signOut(auth);
+  };
+
+  const handleFileChange = async (type, e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setUploading(type);
+    try {
+      await uploadDocument(file, type);
+    } catch (err) {
+      console.error("Document upload failed:", err);
+    } finally {
+      setUploading(null);
+    }
   };
 
   const handleAddNote = async () => {
@@ -287,6 +307,62 @@ export default function Settings() {
         </div>
       </div>
 
+      {/* Medical Documents */}
+      <div style={s.sectionHead}>
+        <span style={s.sectionTitle}>Medical Documents</span>
+      </div>
+
+      <div style={{ padding: "0 16px" }}>
+        <div style={s.card}>
+          <div style={{ fontSize: 12, color: "#7a8fa6", marginBottom: 12, lineHeight: 1.5 }}>
+            Upload PDFs to give the AI assistant access to lab results and provider letters.
+          </div>
+
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              style={{ ...s.uploadBtn, opacity: uploading ? 0.5 : 1 }}
+              disabled={!!uploading}
+              onClick={() => labInputRef.current?.click()}
+            >
+              {uploading === "lab_result" ? "Uploading…" : "📋 Lab Result"}
+            </button>
+            <button
+              style={{ ...s.uploadBtn, opacity: uploading ? 0.5 : 1 }}
+              disabled={!!uploading}
+              onClick={() => letterInputRef.current?.click()}
+            >
+              {uploading === "provider_note" ? "Uploading…" : "📄 Provider Letter"}
+            </button>
+          </div>
+
+          <input ref={labInputRef}    type="file" accept="application/pdf" style={{ display: "none" }} onChange={(e) => handleFileChange("lab_result",    e)}/>
+          <input ref={letterInputRef} type="file" accept="application/pdf" style={{ display: "none" }} onChange={(e) => handleFileChange("provider_note", e)}/>
+
+          {docsLoading ? (
+            <div style={{ fontSize: 12, color: "#7a8fa6", marginTop: 14 }}>Loading…</div>
+          ) : documents.length > 0 && (
+            <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)", marginTop: 14, paddingTop: 12, display: "flex", flexDirection: "column", gap: 8 }}>
+              {documents.map(d => (
+                <div key={d.id} style={s.docRow}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, color: "#e8dcc8", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{d.filename}</div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
+                      <span style={{ ...s.typeBadge, ...(d.type === "lab_result" ? s.typeBadgeLab : s.typeBadgeLetter) }}>
+                        {d.type === "lab_result" ? "Lab Result" : "Provider Letter"}
+                      </span>
+                      <span style={{ fontSize: 11, color: "#7a8fa6" }}>
+                        {d.createdAt?.toDate?.().toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" }) ?? "—"}
+                      </span>
+                    </div>
+                  </div>
+                  <button style={s.deleteBtn} onClick={() => removeDocument(d.id)} aria-label="Delete document">✕</button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* Account section */}
       <div style={s.sectionHead}>
         <span style={s.sectionTitle}>Account</span>
@@ -356,6 +432,11 @@ const s = {
   signOutBtn:  { width:"100%", padding:"12px", borderRadius:12, background:"rgba(239,68,68,0.1)", border:"1px solid rgba(239,68,68,0.2)", color:"#fca5a5", fontSize:14, fontWeight:600, cursor:"pointer", fontFamily:"'DM Sans',sans-serif" },
   unitBtn:     { flex:1, padding:"8px 0", borderRadius:10, border:"1px solid rgba(255,255,255,0.08)", background:"rgba(255,255,255,0.04)", color:"#7a8fa6", fontSize:13, fontWeight:600, cursor:"pointer", fontFamily:"'DM Sans',sans-serif" },
   unitBtnActive:{ background:"rgba(245,158,11,0.15)", borderColor:"rgba(245,158,11,0.4)", color:"#f59e0b" },
-  noteRow:     { display:"flex", alignItems:"flex-start", gap:10, padding:"8px 12px", background:"rgba(255,255,255,0.03)", borderRadius:10, border:"1px solid rgba(255,255,255,0.05)" },
-  deleteBtn:   { background:"none", border:"none", color:"#7a8fa6", fontSize:14, cursor:"pointer", padding:"2px 4px", lineHeight:1, flexShrink:0, fontFamily:"'DM Sans',sans-serif" },
+  noteRow:        { display:"flex", alignItems:"flex-start", gap:10, padding:"8px 12px", background:"rgba(255,255,255,0.03)", borderRadius:10, border:"1px solid rgba(255,255,255,0.05)" },
+  deleteBtn:      { background:"none", border:"none", color:"#7a8fa6", fontSize:14, cursor:"pointer", padding:"2px 4px", lineHeight:1, flexShrink:0, fontFamily:"'DM Sans',sans-serif" },
+  uploadBtn:      { flex:1, padding:"10px 8px", borderRadius:10, border:"1px solid rgba(255,255,255,0.08)", background:"rgba(255,255,255,0.04)", color:"#e8dcc8", fontSize:13, fontWeight:500, cursor:"pointer", fontFamily:"'DM Sans',sans-serif" },
+  docRow:         { display:"flex", alignItems:"center", gap:10, padding:"10px 12px", background:"rgba(255,255,255,0.03)", borderRadius:10, border:"1px solid rgba(255,255,255,0.05)" },
+  typeBadge:      { fontSize:10, fontWeight:600, padding:"2px 7px", borderRadius:20, letterSpacing:"0.4px", textTransform:"uppercase" },
+  typeBadgeLab:   { background:"rgba(95,168,130,0.15)", color:"#7ec8a4" },
+  typeBadgeLetter:{ background:"rgba(245,158,11,0.12)", color:"#f59e0b" },
 };

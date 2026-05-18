@@ -24,7 +24,7 @@ async function getEmbedding(text) {
       "Authorization": `Bearer ${VOYAGE_API_KEY}`,
     },
     body: JSON.stringify({
-      model: "voyage-3-lite",
+      model: "voyage-code-3",
       input: [text],
     }),
   });
