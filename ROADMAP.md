@@ -47,18 +47,18 @@
 
 *Goal: AI recommendations, pattern recognition, vector store*
 
-|Feature                      |Status   |Notes                                                       |
-|-----------------------------|---------|------------------------------------------------------------|
-|Vector store setup           |📋 Planned|Pinecone or Firebase vector search                          |
-|Free-text preference notes   |📋 Planned|Plain language dietary/behavioural notes stored in vector DB|
-|Lab result PDF upload        |📋 Planned|Parsed and stored in vector store, referenceable by AI      |
-|Provider letter upload       |📋 Planned|Same pipeline as lab results                                |
-|Open symptom text/voice entry|📋 Planned|Timestamped clinical notes to vector store                  |
-|AI meal recommendations      |📋 Planned|Based on glucose trends + child history                     |
-|AI pattern recognition       |📋 Planned|Recurring dip windows, meal correlations                    |
-|AI assistant (live data)     |📋 Planned|Full context from Firestore + vector store                  |
-|Meal photo analysis          |📋 Planned|Before/after photos, portion estimation                     |
-|Proactive alerts             |📋 Planned|Predict reactive windows before they happen                 |
+|Feature                      |Status      |Notes                                                                                              |
+|-----------------------------|------------|---------------------------------------------------------------------------------------------------|
+|Vector store setup           |✅ Done     |Pinecone serverless, voyage-code-3 embeddings, 1024 dimensions                                    |
+|Free-text preference notes   |✅ Done     |usePreferenceNotes.js — plain language notes stored in Firestore + Pinecone                        |
+|Lab result PDF upload        |✅ Done     |pdfExtractor.js — text extraction + 500-word overlapping chunks upserted to Pinecone              |
+|Provider letter upload       |✅ Done     |Same pipeline as lab results via useDocuments.js                                                   |
+|Open symptom text entry      |✅ Done     |Free-text observation field on Home screen vectorised on save                                      |
+|AI assistant (live data)     |✅ Done     |AI.jsx — live Firestore context + Pinecone RAG, opening message, conversation history             |
+|AI meal recommendations      |🔨 Partial  |Covered by the AI assistant; a dedicated recommendations screen is still planned                   |
+|AI pattern recognition       |🔨 Partial  |The assistant can surface patterns from history; a dedicated pattern screen is still planned        |
+|Meal photo analysis          |📋 Planned  |Before/after photos, portion estimation via Claude vision API                                      |
+|Proactive alerts             |📋 Planned  |Predict reactive windows before they happen                                                        |
 
 -----
 

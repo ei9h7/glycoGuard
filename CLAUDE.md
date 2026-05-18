@@ -21,7 +21,9 @@ and reactive hypoglycemia. He uses a FreeStyle Libre 3+ CGM and needs to eat eve
 
 ## Current State
 
-Phase 1 is in active development. Here is what is built and working:
+Phase 1 is complete. Phase 2 intelligence layer is in active development.
+
+### Phase 1 — complete
 
 - ✅ Firebase Auth — email/password login and registration
 - ✅ Child profile — create on first login, edit in Settings
@@ -36,12 +38,22 @@ Phase 1 is in active development. Here is what is built and working:
 - ✅ useChild hook — Firestore child document listener
 - ✅ useUnits hook — reads/writes unitPreference from users/{userId}, provides fmt/convert/displayUnit
 
-Phase 1 is complete. Not yet built (Phase 2+, see ROADMAP.md):
-- AI assistant with live Firestore context
+### Phase 2 — in progress
+
+- ✅ Vector store — Pinecone serverless with voyage-code-3 embeddings (1024 dimensions)
+- ✅ Free-text preference notes — usePreferenceNotes.js, stored in Firestore + Pinecone
+- ✅ PDF document upload — pdfExtractor.js extracts text and chunks it (500-word chunks, 50-word overlap); useDocuments.js upserts each chunk as a separate vector with a 500 ms delay between upserts
+- ✅ Symptom observation text → vector store — free-text observations on Home screen vectorised on save
+- ✅ AI assistant screen — AI.jsx, assembles live Firestore context + Pinecone RAG before every call; opening situational message on load; conversation history; quick suggestions before first user message
+
+Not yet built (see ROADMAP.md):
+- Dedicated meal recommendation screen (partially covered by AI assistant)
+- Dedicated pattern recognition screen (partially covered by AI assistant)
+- Meal photo analysis
+- Proactive alerts
 - Co-parent sharing
 - Reports / export
 - CGM integration
-- Vector store / RAG for unstructured data
 
 ---
 
@@ -50,7 +62,9 @@ Phase 1 is complete. Not yet built (Phase 2+, see ROADMAP.md):
 - React 18 + Vite
 - React Router v6
 - Firebase (Auth + Firestore + Storage)
-- Anthropic Claude API (Phase 2 — not yet wired in dev)
+- Anthropic Claude API — claude-sonnet-4-20250514, used in AI assistant screen
+- Voyage AI — voyage-code-3 embeddings, 1024 dimensions, used for all vector upserts and searches
+- Pinecone — serverless vector store, index `glycoguard-dev`, used for RAG context in the AI assistant
 - No CSS framework — inline styles throughout, design tokens via JS constants
 - WSL2 Ubuntu / GitHub Codespaces dev environment
 
@@ -69,6 +83,12 @@ src/
   hooks/
     useAuth.js             — { user, loading } from Firebase Auth
     useChild.js            — { child, childId, loading } from Firestore
+    useUnits.js            — { fmt, convert, displayUnit } unit preference hook
+    useDocuments.js        — PDF upload, chunk upsert to Pinecone, Firestore metadata
+    usePreferenceNotes.js  — Free-text preference/dietary notes → Firestore + Pinecone
+  services/
+    vectorStore.js         — Pinecone + Voyage AI: upsertVector, searchVectors, deleteVector
+    pdfExtractor.js        — extractTextFromPDF (pdfjs-dist), chunkText (500w / 50w overlap)
   components/
     AppShell.jsx           — Nav bar + Outlet layout wrapper
     LogMealModal.jsx       — Meal logging modal (callback pattern)
@@ -82,7 +102,7 @@ src/
     GlucoseHistory.jsx     — Glucose chart + stats + reading list
     Meals.jsx              — Placeholder
     Reports.jsx            — Placeholder
-    AI.jsx                 — Placeholder
+    AI.jsx                 — AI assistant: live context assembly, Pinecone RAG, conversation
     Settings.jsx           — Child profile edit + sign out
 ```
 
@@ -175,10 +195,19 @@ VITE_FIREBASE_PROJECT_ID
 VITE_FIREBASE_STORAGE_BUCKET
 VITE_FIREBASE_MESSAGING_SENDER_ID
 VITE_FIREBASE_APP_ID
-VITE_ANTHROPIC_API_KEY        (Phase 2 — not yet used)
-VITE_PINECONE_API_KEY         (Phase 2 — not yet used)
-VITE_PINECONE_INDEX           (Phase 2 — not yet used)
+VITE_ANTHROPIC_API_KEY        — Claude API key, used by AI assistant screen
+VITE_VOYAGE_API_KEY           — Voyage AI key, used for all embeddings (voyage-code-3)
+VITE_PINECONE_API_KEY         — Pinecone API key
+VITE_PINECONE_HOST            — Pinecone serverless host URL (from index page in console)
+VITE_PINECONE_INDEX           — Pinecone index name (default: glycoguard-dev)
 ```
+
+**Security note:** These keys are currently VITE_-prefixed and called directly from the
+browser — safe for single-user dev with a private repo. Firebase Cloud Functions are
+scaffolded in `functions/` but not yet deployed. Before any multi-user production deploy,
+all Anthropic, Voyage AI, and Pinecone calls must move to Cloud Functions so keys are
+never exposed to the client. The service interfaces (upsertVector, searchVectors,
+callClaude) are designed to make this swap a one-file change.
 
 ---
 
