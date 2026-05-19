@@ -1,199 +1,461 @@
-import { useState, useEffect } from "react";
-import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
+import { useState, useEffect, useRef } from "react";
+import { doc, setDoc, onSnapshot } from "firebase/firestore";
 import { db, auth } from "../firebase";
 import { useChild } from "../hooks/useChild";
+import { usePatterns } from "../hooks/usePatterns";
+import { usePreferenceNotes } from "../hooks/usePreferenceNotes";
 
-const PERIODS = [
-  { label: "24h", days: 1  },
-  { label: "7d",  days: 7  },
-  { label: "14d", days: 14 },
-  { label: "30d", days: 30 },
+const OPENROUTER_KEY = import.meta.env.VITE_OPENROUTER_API_KEY;
+const MODEL = "openrouter/auto";
+
+const GI_COLORS = {
+  "Low":        "#22c55e",
+  "Low-Medium": "#5fa882",
+  "Medium":     "#f59e0b",
+  "High":       "#ef4444",
+};
+
+const FALLBACK_RECOMMENDATIONS = [
+  {
+    name: "Oat porridge with berries",
+    description: "A warm low-GI breakfast that releases energy slowly.",
+    gi: "Low",
+    carbsEstimate: "28g",
+    whyRecommended: "Oats have a low glycaemic index and help stabilise blood glucose between meals.",
+    emoji: "🥣",
+  },
+  {
+    name: "Cheese and wholegrain crackers",
+    description: "A protein-rich snack that bridges meal gaps effectively.",
+    gi: "Low-Medium",
+    carbsEstimate: "12g",
+    whyRecommended: "Protein and fat from cheese slow carbohydrate absorption and help prevent glucose drops.",
+    emoji: "🧀",
+  },
+  {
+    name: "Hummus with vegetable sticks",
+    description: "A fibre-rich snack with steady energy release.",
+    gi: "Low",
+    carbsEstimate: "8g",
+    whyRecommended: "Legume-based hummus provides sustained energy suitable for regular snack intervals.",
+    emoji: "🥕",
+  },
 ];
 
-function fmtTime(ts) {
-  if (!ts) return "";
-  const d = ts.toDate ? ts.toDate() : new Date(ts);
-  return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-}
+async function generateRecommendations(child, patterns, preferenceChunks) {
+  const topPatterns = (patterns || []).slice(0, 5);
+  const topPrefs    = (preferenceChunks || []).slice(0, 5);
 
-function fmtDate(ts) {
-  if (!ts) return "";
-  const d = ts.toDate ? ts.toDate() : new Date(ts);
-  const today = new Date();
-  const yesterday = new Date(today);
-  yesterday.setDate(yesterday.getDate() - 1);
-  if (d.toDateString() === today.toDateString()) return "Today";
-  if (d.toDateString() === yesterday.toDateString()) return "Yesterday";
-  return d.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" });
-}
+  const userPrompt = [
+    "Child profile:",
+    `- Name: ${child.name}`,
+    `- Diagnosis: ${child.diagnosis || "Suspected hyperinsulinism / reactive hypoglycemia"}`,
+    `- Glucose target: ${child.glucoseTargetMin || 4.0}–${child.glucoseTargetMax || 6.5} mmol/L`,
+    `- Meal interval: every ${child.mealIntervalMinutes || 120} minutes`,
+    "",
+    topPatterns.length > 0 ? "Top glucose and meal patterns:" : "No patterns available yet.",
+    ...topPatterns.map(p => `- ${p.title}: ${p.description}`),
+    "",
+    topPrefs.length > 0 ? "Dietary preferences and notes:" : "No dietary preferences recorded yet.",
+    ...topPrefs.map(p => `- ${typeof p === "string" ? p : (p.content || "")}`),
+  ].join("\n");
 
-function StatsStrip({ meals }) {
-  if (meals.length === 0) return null;
-
-  const withCarbs = meals.filter(m => m.carbsEstimate > 0);
-  const avgCarbs = withCarbs.length > 0
-    ? Math.round(withCarbs.reduce((a, m) => a + m.carbsEstimate, 0) / withCarbs.length)
-    : null;
-
-  // Average interval between meals in this period
-  const sorted = [...meals].sort((a, b) => {
-    const at = a.timestamp?.toDate?.()?.getTime() || 0;
-    const bt = b.timestamp?.toDate?.()?.getTime() || 0;
-    return at - bt;
+  const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type":  "application/json",
+      "Authorization": `Bearer ${OPENROUTER_KEY}`,
+      "HTTP-Referer":  "https://glycoguard.app",
+      "X-Title":       "GlycoGuard",
+    },
+    body: JSON.stringify({
+      model:      MODEL,
+      max_tokens: 1200,
+      messages: [
+        {
+          role: "system",
+          content: "You are a pediatric nutrition assistant specializing in hypoglycemia management. Based on the child's glucose patterns and dietary preferences, generate exactly 5 meal or snack recommendations. Respond with ONLY a JSON array of 5 objects, each with these exact fields: name (string), description (string, one sentence), gi (string, one of: Low / Low-Medium / Medium / High), carbsEstimate (string, e.g. '12g'), whyRecommended (string, one sentence explaining why this fits the child's patterns), emoji (single relevant food emoji). No other text, no markdown fences.",
+        },
+        { role: "user", content: userPrompt },
+      ],
+    }),
   });
-  let avgInterval = null;
-  if (sorted.length >= 2) {
-    const gaps = [];
-    for (let i = 1; i < sorted.length; i++) {
-      const prev = sorted[i-1].timestamp?.toDate?.()?.getTime() || 0;
-      const curr = sorted[i].timestamp?.toDate?.()?.getTime() || 0;
-      const gapMin = (curr - prev) / 60000;
-      if (gapMin < 360) gaps.push(gapMin); // ignore gaps > 6h (overnight)
-    }
-    if (gaps.length > 0) avgInterval = Math.round(gaps.reduce((a, b) => a + b, 0) / gaps.length);
-  }
 
-  return (
-    <div style={s.statsStrip}>
-      {[
-        ["Total",        String(meals.length),                     "#f59e0b", "meals logged"],
-        ["Avg carbs",    avgCarbs != null ? `${avgCarbs}g` : "—",  "#7ec8a4", withCarbs.length > 0 ? `from ${withCarbs.length} logs` : "none logged"],
-        ["Avg interval", avgInterval != null ? `${avgInterval}m` : "—", "#5fa882", avgInterval != null ? "between meals" : "need 2+ meals"],
-      ].map(([label, value, color, sub]) => (
-        <div key={label} style={s.statItem}>
-          <div style={{ fontSize: 10, color: "#7a8fa6", marginBottom: 3, textTransform: "uppercase", letterSpacing: "0.6px" }}>{label}</div>
-          <div style={{ fontFamily: "'DM Serif Display',serif", fontSize: 20, color, lineHeight: 1 }}>{value}</div>
-          <div style={{ fontSize: 10, color: "#7a8fa6", marginTop: 2 }}>{sub}</div>
-        </div>
-      ))}
-    </div>
-  );
+  if (!res.ok) throw new Error(await res.text());
+  const data = await res.json();
+  let raw = (data.choices[0].message.content || "").trim();
+
+  // Strip markdown fences if the model ignores the instruction
+  raw = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
+
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    throw new Error("Not a non-empty array");
+  } catch {
+    return FALLBACK_RECOMMENDATIONS;
+  }
 }
 
 export default function Meals() {
-  const { child, childId } = useChild();
-  const [allMeals, setAllMeals] = useState([]);
-  const [period,   setPeriod]   = useState(1);
-  const [loading,  setLoading]  = useState(true);
+  const { child, childId }                     = useChild();
+  const { patterns, loading: patternsLoading } = usePatterns();
+  const { notes }                              = usePreferenceNotes();
 
+  const [recs,        setRecs]        = useState([]);
+  const [recsLoading, setRecsLoading] = useState(true);
+  const [mealPlan,    setMealPlan]    = useState([]);
+  const didGenerate = useRef(false);
+
+  // Live listener on mealPlan/current
   useEffect(() => {
     if (!child || !childId) return;
     const userId = auth.currentUser.uid;
-    const q = query(
-      collection(db, "users", userId, "children", childId, "mealLogs"),
-      orderBy("timestamp", "desc")
-    );
-    return onSnapshot(q, snap => {
-      setAllMeals(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-      setLoading(false);
+    const ref = doc(db, "users", userId, "children", childId, "mealPlan", "current");
+    return onSnapshot(ref, snap => {
+      setMealPlan(snap.exists() ? (snap.data().meals || []) : []);
     });
   }, [child, childId]);
 
-  const cutoff = Date.now() - period * 24 * 60 * 60 * 1000;
-  const filtered = allMeals.filter(m => {
-    const t = m.timestamp?.toDate?.()?.getTime() || 0;
-    return t >= cutoff;
-  });
+  // Generate once after patterns + child are loaded
+  useEffect(() => {
+    if (patternsLoading || !child || !childId || didGenerate.current) return;
+    if (patterns.length === 0) { setRecsLoading(false); return; }
+    didGenerate.current = true;
+    setRecsLoading(true);
+    generateRecommendations(child, patterns, notes)
+      .then(setRecs)
+      .catch(() => setRecs(FALLBACK_RECOMMENDATIONS))
+      .finally(() => setRecsLoading(false));
+  }, [patternsLoading, child, childId, patterns, notes]);
 
-  const grouped = filtered.reduce((acc, m) => {
-    const label = fmtDate(m.timestamp);
-    if (!acc[label]) acc[label] = [];
-    acc[label].push(m);
-    return acc;
-  }, {});
+  const handleRefresh = () => {
+    if (recsLoading || !child || !childId || patterns.length === 0) return;
+    setRecsLoading(true);
+    generateRecommendations(child, patterns, notes)
+      .then(setRecs)
+      .catch(() => setRecs(FALLBACK_RECOMMENDATIONS))
+      .finally(() => setRecsLoading(false));
+  };
+
+  const addToMealPlan = async (rec) => {
+    if (!child || !childId) return;
+    const userId = auth.currentUser.uid;
+    const ref    = doc(db, "users", userId, "children", childId, "mealPlan", "current");
+    const entry  = {
+      name: rec.name, emoji: rec.emoji,
+      carbsEstimate: rec.carbsEstimate, gi: rec.gi,
+      addedAt: new Date().toISOString(),
+    };
+    await setDoc(ref, { meals: [...mealPlan, entry] });
+  };
+
+  const removeFromPlan = async (index) => {
+    if (!child || !childId) return;
+    const userId = auth.currentUser.uid;
+    const ref    = doc(db, "users", userId, "children", childId, "mealPlan", "current");
+    await setDoc(ref, { meals: mealPlan.filter((_, i) => i !== index) });
+  };
+
+  const isInPlan = (name) => mealPlan.some(m => m.name === name);
+
+  const hasNoPatterns = !patternsLoading && patterns.length === 0;
 
   return (
-    <div style={{ fontFamily: "'DM Sans',sans-serif", color: "#e8dcc8" }}>
+    <>
+      <style>{`.recs-hscroll::-webkit-scrollbar { display: none; }`}</style>
+      <div style={{ fontFamily: "'DM Sans',sans-serif", color: "#e8dcc8", paddingBottom: 32 }}>
 
-      {/* Header */}
-      <div style={s.header}>
-        <div style={s.logo}>Meal History</div>
-        <div style={{ fontSize: 11, color: "#7a8fa6" }}>
-          {allMeals.length} total logged
-        </div>
-      </div>
-
-      {/* Period selector */}
-      <div style={s.periodRow}>
-        {PERIODS.map(p => (
-          <button key={p.days}
-            style={{ ...s.periodBtn, ...(period === p.days ? s.periodBtnActive : {}) }}
-            onClick={() => setPeriod(p.days)}>
-            {p.label}
+        {/* Header */}
+        <div style={s.header}>
+          <div>
+            <div style={s.logo}>Meal Suggestions</div>
+            <div style={{ fontSize: 11, color: "#7a8fa6", marginTop: 2 }}>
+              {child?.name ? `Personalised for ${child.name}` : "Loading…"}
+            </div>
+          </div>
+          <button
+            style={{ ...s.refreshBtn, opacity: recsLoading || hasNoPatterns ? 0.4 : 1 }}
+            onClick={handleRefresh}
+            disabled={recsLoading || hasNoPatterns}
+            aria-label="Refresh recommendations"
+          >
+            ↻
           </button>
-        ))}
-      </div>
-
-      {loading ? (
-        <div style={{ padding: "40px 0", textAlign: "center", color: "#7a8fa6", fontSize: 13 }}>
-          Loading meals…
         </div>
-      ) : allMeals.length === 0 ? (
-        <div style={s.emptyState}>
-          <div style={{ fontSize: 40, marginBottom: 12 }}>🍽️</div>
-          <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 6 }}>No meals logged yet</div>
-          <div style={{ fontSize: 13, color: "#7a8fa6" }}>Log a meal from the Home screen to get started.</div>
-        </div>
-      ) : (
-        <>
-          <StatsStrip meals={filtered} />
 
-          <div style={s.sectionHead}>
-            <span style={s.sectionTitle}>Meals</span>
-            <span style={{ fontSize: 11, color: "#7a8fa6" }}>{filtered.length} in period</span>
+        {hasNoPatterns ? (
+
+          /* Empty state — no patterns generated yet */
+          <div style={s.emptyState}>
+            <div style={{ fontSize: 44, marginBottom: 16 }}>🥗</div>
+            <div style={{ fontFamily: "'DM Serif Display',serif", fontSize: 18, color: "#f59e0b", marginBottom: 10 }}>
+              Building your insights
+            </div>
+            <div style={{ fontSize: 13, color: "#7a8fa6", lineHeight: 1.65, maxWidth: 290, textAlign: "center" }}>
+              Log glucose readings, meals and symptoms for at least a week, then visit Patterns to generate insights — meal recommendations will personalise as your data grows.
+            </div>
           </div>
 
-          {filtered.length === 0 ? (
-            <div style={{ padding: "20px 16px", fontSize: 13, color: "#7a8fa6", textAlign: "center" }}>
-              No meals in this period.
+        ) : recsLoading ? (
+
+          /* Loading while generating */
+          <div style={{ padding: "52px 20px", textAlign: "center" }}>
+            <div style={{ fontSize: 40, marginBottom: 14 }}>🍽️</div>
+            <div style={{ fontSize: 14, color: "#7a8fa6" }}>Generating recommendations…</div>
+            <div style={{ fontSize: 12, color: "#5a6f85", marginTop: 6 }}>
+              Analysing glucose patterns and preferences
             </div>
-          ) : (
-            <div style={{ padding: "0 16px 20px" }}>
-              {Object.entries(grouped).map(([dateLabel, meals]) => (
-                <div key={dateLabel} style={{ marginBottom: 20 }}>
-                  <div style={s.dateLabel}>{dateLabel}</div>
-                  {meals.map(m => (
-                    <div key={m.id} style={s.mealRow}>
-                      <div style={s.mealDot} />
-                      <div style={{ flex: 1 }}>
-                        <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
-                          <span style={{ fontSize: 14, fontWeight: 600, color: "#e8dcc8" }}>
-                            {m.descriptionText || "Meal"}
-                          </span>
-                          {m.carbsEstimate > 0 && (
-                            <span style={s.carbBadge}>{m.carbsEstimate}g carbs</span>
-                          )}
+          </div>
+
+        ) : (
+          <>
+
+            {/* Horizontal scrollable recommendation cards */}
+            <div style={{ paddingTop: 16 }}>
+              <div style={s.sectionHead}>
+                <span style={s.sectionTitle}>Suggested meals & snacks</span>
+                <span style={{ fontSize: 11, color: "#7a8fa6" }}>{recs.length} options</span>
+              </div>
+              <div className="recs-hscroll" style={s.hscroll}>
+                {recs.map((rec, i) => (
+                  <div key={i} style={s.recCard}>
+                    <div style={{ fontSize: 44, textAlign: "center", marginBottom: 10 }}>{rec.emoji}</div>
+                    <div style={{ marginBottom: 4 }}>
+                      <div style={s.recName}>{rec.name}</div>
+                      <span style={{
+                        ...s.giBadge,
+                        background:  (GI_COLORS[rec.gi] || "#7a8fa6") + "22",
+                        borderColor: (GI_COLORS[rec.gi] || "#7a8fa6") + "55",
+                        color:        GI_COLORS[rec.gi] || "#7a8fa6",
+                      }}>
+                        {rec.gi}
+                      </span>
+                    </div>
+                    <div style={s.carbsText}>{rec.carbsEstimate} carbs</div>
+                    <div style={s.descText}>{rec.description}</div>
+                    <div style={s.whyText}>{rec.whyRecommended}</div>
+                    <button
+                      style={{ ...s.addBtn, ...(isInPlan(rec.name) ? s.addBtnAdded : {}) }}
+                      onClick={() => !isInPlan(rec.name) && addToMealPlan(rec)}
+                      disabled={isInPlan(rec.name)}
+                    >
+                      {isInPlan(rec.name) ? "✓ Added" : "Add to meal plan"}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* This week's plan */}
+            <div style={{ padding: "8px 16px 8px" }}>
+              <div style={s.sectionHead}>
+                <span style={s.sectionTitle}>This week's plan</span>
+                <span style={{ fontSize: 11, color: "#7a8fa6" }}>
+                  {mealPlan.length} meal{mealPlan.length !== 1 ? "s" : ""}
+                </span>
+              </div>
+
+              {mealPlan.length === 0 ? (
+                <div style={s.planEmpty}>
+                  <div style={{ fontSize: 11, color: "#5a6f85", lineHeight: 1.55 }}>
+                    Tap "Add to meal plan" on a suggestion to build your week.
+                  </div>
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {mealPlan.map((meal, i) => (
+                    <div key={i} style={s.planRow}>
+                      <span style={{ fontSize: 22, flexShrink: 0 }}>{meal.emoji}</span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 14, fontWeight: 600, color: "#e8dcc8", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {meal.name}
                         </div>
-                        <div style={{ fontSize: 11, color: "#7a8fa6", marginTop: 3 }}>
-                          {fmtTime(m.timestamp)}
-                          {m.notes && ` · ${m.notes}`}
+                        <div style={{ fontSize: 11, color: "#7a8fa6", marginTop: 2 }}>
+                          {meal.carbsEstimate} carbs ·{" "}
+                          <span style={{ color: GI_COLORS[meal.gi] || "#7a8fa6" }}>GI: {meal.gi}</span>
                         </div>
                       </div>
+                      <button
+                        style={s.removeBtn}
+                        onClick={() => removeFromPlan(i)}
+                        aria-label="Remove from plan"
+                      >
+                        ×
+                      </button>
                     </div>
                   ))}
                 </div>
-              ))}
+              )}
             </div>
-          )}
-        </>
-      )}
-    </div>
+
+          </>
+        )}
+
+      </div>
+    </>
   );
 }
 
 const s = {
-  header:         { padding: "20px 20px 12px", borderBottom: "1px solid rgba(255,255,255,0.08)", background: "rgba(15,31,53,0.85)", backdropFilter: "blur(12px)", position: "sticky", top: 0, zIndex: 10 },
-  logo:           { fontFamily: "'DM Serif Display',serif", fontSize: 22, color: "#f59e0b", marginBottom: 2 },
-  periodRow:      { display: "flex", gap: 8, padding: "14px 16px", borderBottom: "1px solid rgba(255,255,255,0.06)" },
-  periodBtn:      { flex: 1, padding: "7px 0", borderRadius: 10, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(30,54,84,0.7)", color: "#7a8fa6", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" },
-  periodBtnActive:{ background: "rgba(245,158,11,0.15)", borderColor: "rgba(245,158,11,0.4)", color: "#f59e0b" },
-  statsStrip:     { display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 1, margin: "12px 16px 0", background: "rgba(30,54,84,0.7)", borderRadius: 16, border: "1px solid rgba(255,255,255,0.08)", overflow: "hidden" },
-  statItem:       { padding: "12px 8px", textAlign: "center", borderRight: "1px solid rgba(255,255,255,0.06)" },
-  sectionHead:    { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "20px 20px 10px" },
-  sectionTitle:   { fontSize: 12, fontWeight: 600, textTransform: "uppercase", letterSpacing: "1.2px", color: "#7a8fa6" },
-  dateLabel:      { fontSize: 12, fontWeight: 600, color: "#7a8fa6", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: 8, paddingBottom: 6, borderBottom: "1px solid rgba(255,255,255,0.06)" },
-  mealRow:        { display: "flex", alignItems: "flex-start", gap: 12, padding: "10px 0", borderBottom: "1px solid rgba(255,255,255,0.05)" },
-  mealDot:        { width: 10, height: 10, borderRadius: "50%", background: "rgba(95,168,130,0.8)", border: "2px solid #5fa882", flexShrink: 0, marginTop: 4 },
-  carbBadge:      { fontSize: 11, padding: "2px 8px", borderRadius: 20, background: "rgba(126,200,164,0.15)", border: "1px solid rgba(126,200,164,0.3)", color: "#7ec8a4" },
-  emptyState:     { textAlign: "center", padding: "60px 24px", color: "#e8dcc8" },
+  header: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: "20px 20px 12px",
+    borderBottom: "1px solid rgba(255,255,255,0.08)",
+    background: "rgba(15,31,53,0.85)",
+    backdropFilter: "blur(12px)",
+    position: "sticky",
+    top: 0,
+    zIndex: 10,
+  },
+  logo: {
+    fontFamily: "'DM Serif Display',serif",
+    fontSize: 22,
+    color: "#f59e0b",
+  },
+  refreshBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: "50%",
+    background: "rgba(30,54,84,0.7)",
+    border: "1px solid rgba(255,255,255,0.1)",
+    color: "#f59e0b",
+    fontSize: 22,
+    cursor: "pointer",
+    fontFamily: "'DM Sans',sans-serif",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+    transition: "opacity 0.15s",
+  },
+  sectionHead: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: "0 20px 10px",
+  },
+  sectionTitle: {
+    fontSize: 12,
+    fontWeight: 600,
+    textTransform: "uppercase",
+    letterSpacing: "1.2px",
+    color: "#7a8fa6",
+  },
+  hscroll: {
+    display: "flex",
+    overflowX: "auto",
+    gap: 14,
+    padding: "4px 20px 20px",
+    scrollbarWidth: "none",
+    WebkitOverflowScrolling: "touch",
+  },
+  recCard: {
+    flexShrink: 0,
+    width: 220,
+    background: "rgba(30,54,84,0.7)",
+    border: "1px solid rgba(255,255,255,0.08)",
+    borderRadius: 20,
+    padding: "18px 16px 16px",
+    display: "flex",
+    flexDirection: "column",
+  },
+  recName: {
+    fontFamily: "'DM Serif Display',serif",
+    fontSize: 16,
+    color: "#e8dcc8",
+    lineHeight: 1.25,
+    marginBottom: 6,
+  },
+  giBadge: {
+    display: "inline-block",
+    fontSize: 10,
+    fontWeight: 700,
+    padding: "2px 9px",
+    borderRadius: 20,
+    border: "1px solid",
+    letterSpacing: "0.4px",
+  },
+  carbsText: {
+    fontSize: 12,
+    fontWeight: 600,
+    color: "#7ec8a4",
+    marginBottom: 8,
+    marginTop: 6,
+  },
+  descText: {
+    fontSize: 13,
+    color: "#e8dcc8",
+    lineHeight: 1.5,
+    marginBottom: 8,
+    flex: 1,
+  },
+  whyText: {
+    fontSize: 11,
+    color: "#7a8fa6",
+    lineHeight: 1.45,
+    marginBottom: 14,
+    fontStyle: "italic",
+  },
+  addBtn: {
+    padding: "9px 0",
+    borderRadius: 10,
+    background: "#f59e0b",
+    color: "#0f1f35",
+    border: "none",
+    fontSize: 13,
+    fontWeight: 600,
+    cursor: "pointer",
+    fontFamily: "'DM Sans',sans-serif",
+    width: "100%",
+    letterSpacing: "0.2px",
+    transition: "opacity 0.15s",
+  },
+  addBtnAdded: {
+    background: "rgba(34,197,94,0.18)",
+    color: "#22c55e",
+    cursor: "default",
+  },
+  emptyState: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    padding: "64px 24px 40px",
+    color: "#e8dcc8",
+  },
+  planEmpty: {
+    background: "rgba(30,54,84,0.4)",
+    border: "1px solid rgba(255,255,255,0.06)",
+    borderRadius: 14,
+    padding: "16px 20px",
+    textAlign: "center",
+  },
+  planRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: 12,
+    background: "rgba(30,54,84,0.7)",
+    border: "1px solid rgba(255,255,255,0.08)",
+    borderRadius: 14,
+    padding: "12px 14px",
+  },
+  removeBtn: {
+    width: 28,
+    height: 28,
+    padding: 0,
+    borderRadius: "50%",
+    background: "rgba(239,68,68,0.15)",
+    border: "1px solid rgba(239,68,68,0.25)",
+    color: "#ef4444",
+    fontSize: 18,
+    cursor: "pointer",
+    fontFamily: "'DM Sans',sans-serif",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+    lineHeight: 1,
+  },
 };
