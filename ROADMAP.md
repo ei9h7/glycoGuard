@@ -47,6 +47,14 @@
 
 *Goal: AI recommendations, pattern recognition, vector store*
 
+End of Phase 2 — Open Source Transition
+- Merge glycoGuard-dev into glycoGuard public repo
+- Generic .env.example with setup instructions
+- Contributing guidelines
+- MIT license
+- Updated README with full setup walkthrough
+- Remove/genericise any personal references in code and docs
+
 |Feature                      |Status      |Notes                                                                                              |
 |-----------------------------|------------|---------------------------------------------------------------------------------------------------|
 |Vector store setup           |✅ Done     |Pinecone serverless, voyage-code-3 embeddings, 1024 dimensions                                    |
