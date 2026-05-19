@@ -21,7 +21,7 @@ and reactive hypoglycemia. He uses a FreeStyle Libre 3+ CGM and needs to eat eve
 
 ## Current State
 
-Phase 1 is complete. Phase 2 intelligence layer is in active development.
+Phase 1 is complete. Phase 2 substantially complete with remaining items in backlog.
 
 ### Phase 1 — complete
 
@@ -38,21 +38,21 @@ Phase 1 is complete. Phase 2 intelligence layer is in active development.
 - ✅ useChild hook — Firestore child document listener
 - ✅ useUnits hook — reads/writes unitPreference from users/{userId}, provides fmt/convert/displayUnit
 
-### Phase 2 — in progress
+### Phase 2 — substantially complete
 
 - ✅ Vector store — Pinecone serverless with voyage-code-3 embeddings (1024 dimensions)
 - ✅ Free-text preference notes — usePreferenceNotes.js, stored in Firestore + Pinecone
 - ✅ PDF document upload — pdfExtractor.js extracts text and chunks it (500-word chunks, 50-word overlap); useDocuments.js upserts each chunk as a separate vector with a 500 ms delay between upserts
 - ✅ Symptom observation text → vector store — free-text observations on Home screen vectorised on save
-- ✅ AI assistant screen — AI.jsx, assembles live Firestore context + Pinecone RAG before every call; opening situational message on load; conversation history; quick suggestions before first user message
+- ✅ AI assistant screen — AI.jsx, uses OpenRouter with auto-routing, assembles live Firestore context + Pinecone RAG before every call; opening situational message on load; conversation history; quick suggestions before first user message
+- ✅ Pattern recognition engine — patternEngine.js generates insights from 30 days of glucose, meal, and symptom data; auto-refreshes if stale >6 hours; manual refresh available; stored in Firestore + Pinecone; Reports screen displays patterns grouped by category with confidence indicators
 
 Not yet built (see ROADMAP.md):
 - Dedicated meal recommendation screen (partially covered by AI assistant)
-- Dedicated pattern recognition screen (partially covered by AI assistant)
 - Meal photo analysis
 - Proactive alerts
 - Co-parent sharing
-- Reports / export
+- Pattern report export
 - CGM integration
 
 ---
@@ -62,9 +62,9 @@ Not yet built (see ROADMAP.md):
 - React 18 + Vite
 - React Router v6
 - Firebase (Auth + Firestore + Storage)
-- Anthropic Claude API — claude-sonnet-4-20250514, used in AI assistant screen
+- OpenRouter — AI gateway with auto-routing, claude-sonnet-4-20250514 via openrouter/auto; replaces direct Anthropic API calls
 - Voyage AI — voyage-code-3 embeddings, 1024 dimensions, used for all vector upserts and searches
-- Pinecone — serverless vector store, index `glycoguard-dev`, used for RAG context in the AI assistant
+- Pinecone — serverless vector store, AWS us-east-1, 1024 dimensions, index `glycoguard-dev`
 - No CSS framework — inline styles throughout, design tokens via JS constants
 - WSL2 Ubuntu / GitHub Codespaces dev environment
 
@@ -86,9 +86,11 @@ src/
     useUnits.js            — { fmt, convert, displayUnit } unit preference hook
     useDocuments.js        — PDF upload, chunk upsert to Pinecone, Firestore metadata
     usePreferenceNotes.js  — Free-text preference/dietary notes → Firestore + Pinecone
+    usePatterns.js         — Pattern engine hooks: fetch patterns, refresh if stale >6 hours
   services/
     vectorStore.js         — Pinecone + Voyage AI: upsertVector, searchVectors, deleteVector
     pdfExtractor.js        — extractTextFromPDF (pdfjs-dist), chunkText (500w / 50w overlap)
+    patternEngine.js       — Pattern analysis: 30-day glucose/meal/symptom insights
   components/
     AppShell.jsx           — Nav bar + Outlet layout wrapper
     LogMealModal.jsx       — Meal logging modal (callback pattern)
@@ -101,9 +103,12 @@ src/
     Home.jsx               — Main dashboard screen
     GlucoseHistory.jsx     — Glucose chart + stats + reading list
     Meals.jsx              — Placeholder
-    Reports.jsx            — Placeholder
+    Reports.jsx            — Pattern summaries grouped by category with confidence indicators
     AI.jsx                 — AI assistant: live context assembly, Pinecone RAG, conversation
     Settings.jsx           — Child profile edit + sign out
+
+functions/
+  Cloud Functions scaffolded (not yet deployed) for production key management
 ```
 
 ---
@@ -195,17 +200,17 @@ VITE_FIREBASE_PROJECT_ID
 VITE_FIREBASE_STORAGE_BUCKET
 VITE_FIREBASE_MESSAGING_SENDER_ID
 VITE_FIREBASE_APP_ID
-VITE_ANTHROPIC_API_KEY        — Claude API key, used by AI assistant screen
-VITE_VOYAGE_API_KEY           — Voyage AI key, used for all embeddings (voyage-code-3)
-VITE_PINECONE_API_KEY         — Pinecone API key
-VITE_PINECONE_HOST            — Pinecone serverless host URL (from index page in console)
-VITE_PINECONE_INDEX           — Pinecone index name (default: glycoguard-dev)
+VITE_OPENROUTER_API_KEY        — OpenRouter API key, used by AI assistant screen (routes to claude-sonnet-4-20250514)
+VITE_VOYAGE_API_KEY            — Voyage AI key, used for all embeddings (voyage-code-3, 1024 dimensions)
+VITE_PINECONE_API_KEY          — Pinecone API key
+VITE_PINECONE_HOST             — Pinecone serverless host URL (from index page in console, AWS us-east-1)
+VITE_PINECONE_INDEX            — Pinecone index name (default: glycoguard-dev)
 ```
 
 **Security note:** These keys are currently VITE_-prefixed and called directly from the
 browser — safe for single-user dev with a private repo. Firebase Cloud Functions are
 scaffolded in `functions/` but not yet deployed. Before any multi-user production deploy,
-all Anthropic, Voyage AI, and Pinecone calls must move to Cloud Functions so keys are
+all OpenRouter, Voyage AI, and Pinecone calls must move to Cloud Functions so keys are
 never exposed to the client. The service interfaces (upsertVector, searchVectors,
 callClaude) are designed to make this swap a one-file change.
 
