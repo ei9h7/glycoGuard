@@ -6,8 +6,8 @@ import { db, auth } from "../firebase";
 import { useChild } from "../hooks/useChild";
 import { searchVectors } from "../services/vectorStore";
 
-const ANTHROPIC_KEY = import.meta.env.VITE_ANTHROPIC_API_KEY;
-const MODEL = "claude-sonnet-4-20250514";
+const OPENROUTER_KEY = import.meta.env.VITE_OPENROUTER_API_KEY;
+const MODEL = "openrouter/auto";
 
 // ── Pure helpers ──────────────────────────────────────────────────────────────
 
@@ -166,22 +166,26 @@ async function assembleContext(child, childId, queryText) {
   return { system, lastMeal, recentGluc, level, minSinceMeal };
 }
 
-// ── Anthropic API call ────────────────────────────────────────────────────────
+// ── OpenRouter API call ───────────────────────────────────────────────────────
 
 async function callClaude(system, messages) {
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
+  const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
     method:  "POST",
     headers: {
       "Content-Type":  "application/json",
-      "x-api-key":     ANTHROPIC_KEY,
-      "anthropic-version": "2023-06-01",
-      "anthropic-dangerous-direct-browser-access": "true",
+      "Authorization": `Bearer ${OPENROUTER_KEY}`,
+      "HTTP-Referer":  "https://glycoguard.app",
+      "X-Title":       "GlycoGuard",
     },
-    body: JSON.stringify({ model: MODEL, max_tokens: 1000, system, messages }),
+    body: JSON.stringify({
+      model: MODEL,
+      max_tokens: 1000,
+      messages: [{ role: "system", content: system }, ...messages],
+    }),
   });
   if (!res.ok) throw new Error(await res.text());
   const data = await res.json();
-  return data.content[0].text;
+  return data.choices[0].message.content;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
