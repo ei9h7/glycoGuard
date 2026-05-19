@@ -49,11 +49,12 @@
 
 End of Phase 2 — Open Source Transition
 - Merge glycoGuard-dev into glycoGuard public repo
-- Generic .env.example with setup instructions
+- Generic .env.example with setup instructions (including `VITE_OPENROUTER_API_KEY`)
 - Contributing guidelines
 - MIT license
 - Updated README with full setup walkthrough
 - Remove/genericise any personal references in code and docs
+- Update CLAUDE.md to reflect OpenRouter replacing direct Anthropic API calls
 
 |Feature                      |Status      |Notes                                                                                              |
 |-----------------------------|------------|---------------------------------------------------------------------------------------------------|
@@ -62,7 +63,7 @@ End of Phase 2 — Open Source Transition
 |Lab result PDF upload        |✅ Done     |pdfExtractor.js — text extraction + 500-word overlapping chunks upserted to Pinecone              |
 |Provider letter upload       |✅ Done     |Same pipeline as lab results via useDocuments.js                                                   |
 |Open symptom text entry      |✅ Done     |Free-text observation field on Home screen vectorised on save                                      |
-|AI assistant (live data)     |✅ Done     |AI.jsx — live Firestore context + Pinecone RAG, opening message, conversation history             |
+|AI assistant (live data)     |✅ Done     |AI.jsx — live Firestore context + Pinecone RAG, opening message, conversation history; routed via OpenRouter (openrouter/auto)|
 |AI meal recommendations      |🔨 Partial  |Covered by the AI assistant; a dedicated recommendations screen is still planned                   |
 |AI pattern recognition       |🔨 Partial  |The assistant can surface patterns from history; a dedicated pattern screen is still planned        |
 |Meal photo analysis          |📋 Planned  |Before/after photos, portion estimation via Claude vision API                                      |
