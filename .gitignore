@@ -40,3 +40,6 @@ firebaserc
 
 # Testing
 coverage
+
+# Dev container
+.devcontainer/devcontainer.json
