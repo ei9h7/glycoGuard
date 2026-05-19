@@ -54,12 +54,16 @@ This repository contains the **public prototype** — an interactive demonstrati
 |Vector store (Pinecone + Voyage) |✅ Built          |
 |Free-text preference notes       |✅ Built          |
 |PDF upload (lab results, letters)|✅ Built          |
+|Clinical observation text storage|✅ Built          |
 |AI assistant with live context   |✅ Built          |
+|OpenRouter AI integration        |✅ Built          |
+|Pattern recognition engine       |✅ Built          |
 |AI meal recommendations          |🔨 Partial — covered by assistant; dedicated screen planned|
 |AI meal photo analysis           |📋 Planned        |
 |Proactive alerts                 |📋 Planned        |
 |CGM integration (FreeStyle Libre)|📋 Planned        |
 |Co-parent sync                   |📋 Planned        |
+|Pattern report export            |📋 Planned        |
 |Medical report export            |📋 Planned        |
 |Grocery API (Instacart)          |📋 Planned        |
 |iOS / Android native app         |📋 Planned        |
@@ -98,6 +102,10 @@ This project is in active development. If you are a parent, caregiver, or medica
 
 - React 18
 - Vite
+- Firebase (Auth + Firestore + Storage)
+- OpenRouter (AI gateway, routes to claude-sonnet-4-20250514)
+- Voyage AI (voyage-code-3 embeddings, 1024 dimensions)
+- Pinecone (serverless vector store, AWS us-east-1)
 - Deployed via GitHub Actions → GitHub Pages
 
 -----
