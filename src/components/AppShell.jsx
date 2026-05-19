@@ -1,9 +1,15 @@
+import { useEffect, useRef } from "react";
 import { Outlet, NavLink } from "react-router-dom";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "../firebase";
+import { useAuth } from "../hooks/useAuth";
+import { useChild } from "../hooks/useChild";
+import { generatePatterns } from "../services/patternEngine";
 
 const NAV = [
   { to: "/",         icon: "🏠", label: "Home"      },
   { to: "/meals",    icon: "🍽️", label: "Meals"     },
-  { to: "/reports",  icon: "📊", label: "Reports"   },
+  { to: "/reports",  icon: "🧩", label: "Patterns"  },
   { to: "/ai",       icon: "✨", label: "Assistant" },
   { to: "/settings", icon: "⚙️", label: "Settings"  },
 ];
@@ -30,6 +36,33 @@ const s = {
 };
 
 export default function AppShell() {
+  const { user }           = useAuth();
+  const { child, childId } = useChild();
+  const checkedRef         = useRef(false);
+
+  // Once per session: refresh patterns in background if stale (>6 hours)
+  useEffect(() => {
+    if (!user || !child || !childId || checkedRef.current) return;
+    checkedRef.current = true;
+
+    const SIX_HOURS = 6 * 60 * 60 * 1000;
+    (async () => {
+      try {
+        const ref  = doc(db, "users", user.uid, "children", childId, "patternSummary", "latest");
+        const snap = await getDoc(ref);
+        if (snap.exists()) {
+          const ts = snap.data().generatedAt?.toDate?.();
+          if (ts && Date.now() - ts.getTime() < SIX_HOURS) return;
+        }
+        generatePatterns(user.uid, childId, child).catch(e =>
+          console.warn("Background pattern refresh failed:", e.message)
+        );
+      } catch (e) {
+        console.warn("Pattern staleness check failed:", e.message);
+      }
+    })();
+  }, [user, child, childId]);
+
   return (
     <div style={s.app}>
       <div style={s.screen}>

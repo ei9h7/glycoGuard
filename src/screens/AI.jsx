@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useLocation } from "react-router-dom";
 import {
   collection, query, orderBy, limit, where, getDocs, Timestamp,
 } from "firebase/firestore";
@@ -192,18 +193,30 @@ async function callClaude(system, messages) {
 
 export default function AI() {
   const { child, childId } = useChild();
+  const location = useLocation();
 
   const [messages,    setMessages]    = useState([]);
   const [input,       setInput]       = useState("");
   const [typing,      setTyping]      = useState(false);
   const [openingDone, setOpeningDone] = useState(false);
   const [quickSugs,   setQuickSugs]   = useState([]);
+  const didPrefill    = useRef(false);
 
   const bottomRef = useRef(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, typing]);
+
+  // Pre-fill input from pattern navigation
+  useEffect(() => {
+    if (didPrefill.current) return;
+    const prefillMsg = location.state?.prefillMessage?.trim();
+    if (prefillMsg && openingDone) {
+      didPrefill.current = true;
+      setInput(prefillMsg);
+    }
+  }, [openingDone, location.state]);
 
   // Generate opening message once child data is ready
   useEffect(() => {

@@ -16,7 +16,7 @@ GlycoGuard is a mobile-first React web application (with a planned native port) 
 
 - **React 18** — component framework
 - **Vite** — build tool and dev server
-- **React Router** — navigation (to be added Phase 1)
+- **React Router** — navigation
 - **Deployed:** GitHub Pages (public prototype) → Firebase Hosting (dev/production)
 
 ### Backend / Infrastructure
@@ -24,8 +24,10 @@ GlycoGuard is a mobile-first React web application (with a planned native port) 
 - **Firebase Auth** — authentication (email/password → Google → Apple)
 - **Firestore** — structured real-time database
 - **Firebase Storage** — file uploads (PDFs, meal photos)
-- **Vector Store** — unstructured semantic search (Pinecone or Firebase Vector Search — TBD)
-- **Anthropic API** — Claude for AI assistant, meal analysis, pattern recognition
+- **Pinecone** — serverless vector store (AWS us-east-1, 1024 dimensions)
+- **OpenRouter** — AI gateway, routes to claude-sonnet-4-20250514
+- **Voyage AI** — voyage-code-3 embeddings, 1024 dimensions
+- **Cloud Functions** — scaffolded for production key management (not yet deployed)
 
 ### Dev Environment
 
@@ -136,6 +138,35 @@ Each document stored as an embedding with metadata for filtering:
 
 **Retrieval strategy:** on AI query, semantic search filtered by `userId` + `childId`, top-k results injected into system prompt alongside Firestore summary.
 
+**Decision: Pinecone (resolved).** Pinecone serverless offers purpose-built vector capabilities, excellent filtering, generous free tier, and clear cost scaling. Chosen over Firebase Vector Search for maturity and feature richness.
+
+-----
+
+## Pattern Recognition Engine
+
+Pattern analysis runs automatically on app load if the last analysis is stale (>6 hours old). Manual refresh available in Reports screen. Patterns are stored in both Firestore (structured summaries) and Pinecone (embeddings for semantic retrieval).
+
+### Process
+
+1. **Fetch 30 days of data** from Firestore: glucose readings, meal logs, symptom events
+2. **Analyze patterns:**
+   - Glucose: identify recurring lows by time of day, magnitude, duration
+   - Meals: carb/timing correlations with glucose nadir
+   - Symptoms: temporal clustering (morning reactive episodes, post-meal spikes, etc.)
+3. **Generate insights:** per-category summaries with confidence scores (0–100)
+4. **Store results:**
+   - Firestore: structured pattern summaries with metadata (analysis date, version)
+   - Pinecone: embeddings of each pattern for semantic retrieval in AI context
+
+### Pattern Categories
+
+- **Glucose patterns**: timing, magnitude, variability, trend
+- **Meal patterns**: carbs/timing → glucose response, favorite foods, meal intervals
+- **Symptom patterns**: triggers, resolution, clustering, severity trends
+- **Behavioral patterns**: sleep, activity, stress factors
+
+Each pattern includes confidence (data volume, consistency, statistical significance) to indicate reliability.
+
 -----
 
 ## Symptom Logging — Three Layer Model
@@ -221,8 +252,10 @@ VITE_FIREBASE_PROJECT_ID=
 VITE_FIREBASE_STORAGE_BUCKET=
 VITE_FIREBASE_MESSAGING_SENDER_ID=
 VITE_FIREBASE_APP_ID=
-VITE_ANTHROPIC_API_KEY=
+VITE_OPENROUTER_API_KEY=
+VITE_VOYAGE_API_KEY=
 VITE_PINECONE_API_KEY=
+VITE_PINECONE_HOST=
 VITE_PINECONE_INDEX=
 ```
 
