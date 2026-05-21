@@ -42,5 +42,4 @@ firebaserc
 # Testing
 coverage
 
-# Dev container
-.devcontainer/devcontainer.json
+# Dev container — devcontainer.json is intentionally tracked for Codespaces support

@@ -171,6 +171,12 @@ Feedback is built into the app — tap the 💬 button in the bottom right corne
 
 -----
 
+## Feedback
+
+A feedback button is built into the app on every screen. We're in active development and every piece of feedback shapes what gets built next.
+
+-----
+
 ## Background
 
 GlycoGuard was created by a parent of a child with suspected hyperinsulinism and reactive hypoglycemia. The design is informed by lived experience managing the condition day-to-day — including co-parenting across two households, navigating daycare handoffs, and preparing for medical appointments with incomplete data.
@@ -197,7 +203,7 @@ This project is in active development. If you are a parent, caregiver, or medica
 - OpenRouter (AI gateway, routes to claude-sonnet-4-20250514)
 - Voyage AI (voyage-code-3 embeddings, 1024 dimensions)
 - Pinecone (serverless vector store, AWS us-east-1)
-- Deployed via GitHub Actions → GitHub Pages
+- Deployed via Vercel — [glycoguard.app](https://glycoguard.app)
 
 -----
 

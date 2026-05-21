@@ -2,7 +2,9 @@
 
 ## Welcome
 
-GlycoGuard is a mobile-first web app for managing hypoglycemia in young children — particularly reactive hypoglycemia and congenital hyperinsulinism (CHI). It was built by a parent living this situation day-to-day, and it's open to contributors who want to help make it better for every family facing the same challenges.
+GlycoGuard is a mobile-first web app for managing hypoglycemia in young children — particularly reactive hypoglycemia and congenital hyperinsulinism (CHI). It was built by a parent of a child with suspected hyperinsulinism and reactive hypoglycemia, living this situation day-to-day. Every design decision is informed by that experience, and it's open to contributors who want to help make it better for every family facing the same challenges.
+
+The medical accuracy of recommendations, alert thresholds, and clinical language in this app matters — these features are used by families managing a serious condition in real time. If you have relevant medical or clinical expertise, your input is especially welcome. Please open an issue or reach out before making changes to glucose thresholds, clinical terminology, or AI guidance prompts.
 
 Contributions of all kinds are welcome:
 
