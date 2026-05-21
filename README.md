@@ -74,6 +74,93 @@ This repository contains the **public prototype** — an interactive demonstrati
 
 -----
 
+## Getting Started (Development)
+
+### Prerequisites
+
+- Node.js 18+
+- A [Firebase](https://firebase.google.com) account (free)
+- A [Pinecone](https://app.pinecone.io) account (free)
+- A [Voyage AI](https://dashboard.voyageai.com) account (free)
+- An [OpenRouter](https://openrouter.ai) account (free)
+
+### 1. Clone and install
+
+```bash
+git clone https://github.com/ei9h7/glycoGuard-dev.git
+cd glycoGuard-dev
+npm install
+```
+
+### 2. Configure environment variables
+
+```bash
+cp .env.example .env
+```
+
+Open `.env` and fill in each value using the steps below.
+
+### 3. Firebase setup
+
+1. Create a project at [console.firebase.google.com](https://console.firebase.google.com)
+2. Enable **Email/Password** sign-in under Authentication → Sign-in method
+3. Create a **Firestore database** (start in test mode for local dev)
+4. Go to Project Settings → Your Apps → add a web app → copy the config values into `.env`
+
+### 4. Pinecone setup
+
+1. Create a new **serverless index** at [app.pinecone.io](https://app.pinecone.io) with:
+   - Dimensions: `1024` · Metric: `Cosine` · Cloud: `AWS us-east-1`
+2. Copy your **API key** and the index **Host URL** into `.env`
+
+### 5. Voyage AI setup
+
+1. Sign in at [dashboard.voyageai.com](https://dashboard.voyageai.com)
+2. Generate an API key and copy it into `.env`
+
+> The free tier allows 3 RPM without billing. Add a payment method for standard rate limits — the 200M free token allowance still applies.
+
+### 6. OpenRouter setup
+
+1. Sign in at [openrouter.ai](https://openrouter.ai) → Keys
+2. Generate an API key and copy it into `.env`
+
+> Free models are available. Add credits for production-quality Claude responses.
+
+### 7. Run the app
+
+```bash
+npm run dev
+```
+
+Open [http://localhost:5173](http://localhost:5173).
+
+### 8. First run
+
+Register an account, create a child profile (name, diagnosis, glucose targets, meal interval), then start logging meals and glucose readings. After a week of data, visit the Reports screen to generate pattern insights, which will personalise the meal recommendations on the Meals screen.
+
+-----
+
+## Security
+
+All API keys in this project are prefixed with `VITE_`, which means Vite bundles them into the browser JavaScript. **This is intentional for single-user development with a private repository** — your keys are not exposed publicly if the repo is private.
+
+**Before deploying to production with multiple users:**
+
+1. Deploy the Firebase Cloud Functions scaffolded in the `functions/` folder
+2. Move all OpenRouter, Voyage AI, and Pinecone calls into those functions so API keys never reach the browser
+3. Remove `VITE_OPENROUTER_API_KEY`, `VITE_VOYAGE_API_KEY`, and `VITE_PINECONE_API_KEY` from your Vercel/hosting environment variables
+
+The service interfaces (`vectorStore.js`, `patternEngine.js`) are designed to make this swap a one-file change per service.
+
+-----
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for setup instructions and contribution guidelines. We welcome contributions in CGM integration, native app development, medical accuracy review, and translations.
+
+-----
+
 ## Try the Prototype
 
 **<https://ei9h7.github.io/glycoGuard/>**

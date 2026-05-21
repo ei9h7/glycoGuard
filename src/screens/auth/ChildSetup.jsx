@@ -81,7 +81,7 @@ export default function ChildSetup() {
 
         <div style={s.group}>
           <label style={s.label}>Child's first name</label>
-          <input style={s.input} type="text" placeholder="e.g. Henry"
+          <input style={s.input} type="text" placeholder="Child's first name"
             value={form.name} onChange={set("name")} required />
         </div>
 
