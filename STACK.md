@@ -22,7 +22,8 @@ Running record of technology choices, versions, and the reasoning behind each de
 |Firebase Auth   |Decided   |Email/password to start, Google + Apple later. Required for App Store.|
 |Firestore       |Decided   |Real-time sync across devices and co-parents. Flexible schema.        |
 |Firebase Storage|Decided   |Meal photos, uploaded PDFs. Integrates with Firestore security rules. |
-|Firebase Hosting|Phase 1   |Will replace GitHub Pages. Better performance, custom domain.         |
+|Firebase Hosting|Superseded|Replaced by Vercel for deployment.                                    |
+|Vercel          |Decided   |Production deployment. Production: glycoguard.app · Preview: glycoguard-dev.vercel.app|
 |Vector Store    |Decided   |Pinecone serverless, AWS us-east-1, purpose-built, mature, excellent filtering.|
 |Cloud Functions |Scaffolded|Not yet deployed. Will handle API keys for production multi-user deploy.|
 

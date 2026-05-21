@@ -86,6 +86,8 @@ End of Phase 2 — Open Source Transition
 |Selectable report recipients  |📋 Planned   |User feedback item                           |
 |Daycare/caregiver view        |📋 Planned   |Limited read-only access, simplified UI      |
 |Provider portal               |💡 Identified|Read access for medical team                 |
+|AI toggle                     |📋 Planned   |Global setting in user preferences to enable/disable all AI features (meal recommendations, pattern recognition, AI assistant, meal photo analysis). App fully functional as a logging and tracking tool without AI. Default off for new users with a clear opt-in prompt explaining what AI features do and how data is used.|
+|Health platform sync          |📋 Planned   |Apple Health (iOS) and Google Health Connect (Android) integration to read and write glucose readings, meals, and activity data. Allows GlycoGuard to consolidate data from other health apps and contribute back to the parent's health platform. Requires native app (Phase 5) for full functionality; web-based read access may be possible earlier via Health Connect REST API.|
 
 -----
 

@@ -58,7 +58,11 @@ This repository contains the **public prototype** — an interactive demonstrati
 |AI assistant with live context   |✅ Built          |
 |OpenRouter AI integration        |✅ Built          |
 |Pattern recognition engine       |✅ Built          |
-|AI meal recommendations          |🔨 Partial — covered by assistant; dedicated screen planned|
+|AI meal recommendations          |✅ Built          |
+|Meal recommendations screen      |✅ Built          |
+|Weekly meal plan grid            |✅ Built          |
+|Grocery list generation          |✅ Built          |
+|Vercel deployment                |✅ Live — [glycoguard.app](https://glycoguard.app)|
 |AI meal photo analysis           |📋 Planned        |
 |Proactive alerts                 |📋 Planned        |
 |CGM integration (FreeStyle Libre)|📋 Planned        |
