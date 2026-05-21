@@ -132,7 +132,7 @@ async function assembleContext(child, childId, queryText) {
     "CHILD PROFILE:",
     `- Name: ${child.name}`,
     `- Date of birth: ${child.dob || "Not specified"}`,
-    `- Diagnosis: ${child.diagnosis || "Suspected hyperinsulinism / reactive hypoglycemia"}`,
+    `- Diagnosis: ${child.diagnosis || "Not specified"}`,
     `- Glucose target range: ${targetMin}–${targetMax} mmol/L`,
     `- Meal interval: every ${interval} minutes`,
     `- CGM device: ${child.cgmDevice || "Not specified"}`,

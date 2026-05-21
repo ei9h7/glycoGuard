@@ -87,7 +87,7 @@ async function generateRecommendations(child, patterns, preferenceChunks) {
   const userPrompt = [
     "Child profile:",
     `- Name: ${child.name}`,
-    `- Diagnosis: ${child.diagnosis || "Suspected hyperinsulinism / reactive hypoglycemia"}`,
+    `- Diagnosis: ${child.diagnosis || "Not specified"}`,
     `- Glucose target: ${child.glucoseTargetMin || 4.0}–${child.glucoseTargetMax || 6.5} mmol/L`,
     `- Meal interval: every ${child.mealIntervalMinutes || 120} minutes`,
     "",
