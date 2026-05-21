@@ -22,8 +22,10 @@ Running record of technology choices, versions, and the reasoning behind each de
 |Firebase Auth   |Decided   |Email/password to start, Google + Apple later. Required for App Store.|
 |Firestore       |Decided   |Real-time sync across devices and co-parents. Flexible schema.        |
 |Firebase Storage|Decided   |Meal photos, uploaded PDFs. Integrates with Firestore security rules. |
-|Firebase Hosting|Phase 1   |Will replace GitHub Pages. Better performance, custom domain.         |
-|Vector Store    |Evaluating|Pinecone vs Firebase Vector Search — decision at Phase 2 start.       |
+|Firebase Hosting|Superseded|Replaced by Vercel for deployment.                                    |
+|Vercel          |Decided   |Production deployment. Production: glycoguard.app · Preview: glycoguard-dev.vercel.app|
+|Vector Store    |Decided   |Pinecone serverless, AWS us-east-1, purpose-built, mature, excellent filtering.|
+|Cloud Functions |Scaffolded|Not yet deployed. Will handle API keys for production multi-user deploy.|
 
 ### Vector Store Evaluation
 
@@ -39,9 +41,11 @@ Leaning Pinecone for capability. Revisit at Phase 2 start.
 
 |Technology          |Decision|Rationale                                                    |
 |--------------------|--------|-------------------------------------------------------------|
-|Anthropic Claude API|Decided |claude-sonnet-4-20250514 for assistant and meal analysis     |
+|OpenRouter          |Decided |AI gateway with auto-routing; currently routes to claude-sonnet-4-20250514; model flexibility, cost control, no vendor lock-in|
+|Voyage AI embeddings|Decided |voyage-code-3, 1024 dimensions; used for all vector upserts and searches|
+|PDF text extraction |Decided |pdfjs-dist for extractTextFromPDF; 500-word chunks with 50-word overlap|
 |Speech-to-text      |Phase 2 |Web Speech API (browser-native, free) for voice symptom entry|
-|Meal photo analysis |Phase 2 |Claude vision — before/after photo comparison                |
+|Meal photo analysis |Phase 3 |Claude vision — before/after photo comparison via OpenRouter|
 
 -----
 
@@ -80,8 +84,24 @@ Leaning Pinecone for capability. Revisit at Phase 2 start.
 |Unit conversion factor|mg/dL = mmol/L x 18.0182       |Standard conversion                                      |
 |Unit preference       |Per user account, global toggle|Consistency across all screens                           |
 |Structured data       |Firestore                      |Time-series, queryable, real-time                        |
-|Unstructured data     |Vector store                   |Lab results, notes, observations, preferences            |
+|Unstructured data     |Vector store (Pinecone)        |Lab results, notes, observations, preferences, patterns  |
+|Pattern storage       |Firestore + Pinecone           |Structured summaries in Firestore; embeddings in Pinecone for retrieval|
 |File storage          |Firebase Storage               |Meal photos, uploaded PDFs                               |
+|PDF chunking strategy |500 words, 50-word overlap     |Balance between context preservation and retrieval granularity|
+|Embedding service     |Voyage AI voyage-code-3        |1024 dimensions, purpose-built for code/document embeddings|
+
+-----
+
+## Production Deployment & Key Management
+
+**Current state (dev):** All API keys are VITE_-prefixed and called directly from the browser. This is safe for single-user development with a private repository, but must not go to production.
+
+**Production path:** Firebase Cloud Functions are scaffolded in `functions/` and must be deployed before any multi-user production release. The service interfaces (`vectorStore.js`, `patternEngine.js`) are designed to make this swap a one-file change:
+- All OpenRouter calls → Cloud Function
+- All Voyage AI embedding calls → Cloud Function  
+- All Pinecone vector operations → Cloud Function
+
+This keeps API keys server-side and makes key rotation transparent to the client.
 
 -----
 

@@ -63,9 +63,9 @@ End of Phase 2 — Open Source Transition
 |Lab result PDF upload        |✅ Done     |pdfExtractor.js — text extraction + 500-word overlapping chunks upserted to Pinecone              |
 |Provider letter upload       |✅ Done     |Same pipeline as lab results via useDocuments.js                                                   |
 |Open symptom text entry      |✅ Done     |Free-text observation field on Home screen vectorised on save                                      |
-|AI assistant (live data)     |✅ Done     |AI.jsx — live Firestore context + Pinecone RAG, opening message, conversation history; routed via OpenRouter (openrouter/auto)|
-|AI meal recommendations      |🔨 Partial  |Covered by the AI assistant; a dedicated recommendations screen is still planned                   |
-|AI pattern recognition       |🔨 Partial  |The assistant can surface patterns from history; a dedicated pattern screen is still planned        |
+|AI assistant (live data)     |✅ Done     |AI.jsx — uses OpenRouter with auto-routing, full Firestore + Pinecone context assembly, conversation history, live on dev|
+|AI meal recommendations      |🔨 In progress|Partially covered by the AI assistant; dedicated recommendations screen still planned                |
+|AI pattern recognition       |✅ Done     |Pattern engine generates insights from 30 days of glucose, meal, and symptom data; stored in Firestore + Pinecone; auto-refreshes if stale >6 hours; manual refresh available; Reports screen grouped by category with confidence indicators|
 |Meal photo analysis          |📋 Planned  |Before/after photos, portion estimation via Claude vision API                                      |
 |Proactive alerts             |📋 Planned  |Predict reactive windows before they happen                                                        |
 
@@ -81,10 +81,13 @@ End of Phase 2 — Open Source Transition
 |Dexcom integration            |📋 Planned   |Dexcom developer API                         |
 |Co-parent account linking     |📋 Planned   |Granular per-category sharing controls       |
 |Co-parent independent logging |📋 Planned   |Both parties log independently, data merges  |
+|Pattern report export         |📋 Planned   |"Create report for medical team" formatted PDF export of pattern summaries, plain language interpretation of glucose trends and meal correlations for endocrinologists|
 |Medical report export         |📋 Planned   |Selectable data, PDF, formatted for providers|
 |Selectable report recipients  |📋 Planned   |User feedback item                           |
 |Daycare/caregiver view        |📋 Planned   |Limited read-only access, simplified UI      |
 |Provider portal               |💡 Identified|Read access for medical team                 |
+|AI toggle                     |📋 Planned   |Global setting in user preferences to enable/disable all AI features (meal recommendations, pattern recognition, AI assistant, meal photo analysis). App fully functional as a logging and tracking tool without AI. Default off for new users with a clear opt-in prompt explaining what AI features do and how data is used.|
+|Health platform sync          |📋 Planned   |Apple Health (iOS) and Google Health Connect (Android) integration to read and write glucose readings, meals, and activity data. Allows GlycoGuard to consolidate data from other health apps and contribute back to the parent's health platform. Requires native app (Phase 5) for full functionality; web-based read access may be possible earlier via Health Connect REST API.|
 
 -----
 
