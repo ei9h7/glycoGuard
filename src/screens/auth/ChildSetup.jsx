@@ -2,6 +2,7 @@ import { useState } from "react";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { db, auth } from "../../firebase";
 import { useNavigate } from "react-router-dom";
+import { t } from "../../styles/tokens";
 
 const CGM_OPTIONS = [
   "None / Not using CGM",
@@ -162,18 +163,18 @@ export default function ChildSetup() {
 }
 
 const s = {
-  wrap:     { minHeight:"100vh", background:"#0f1f35", color:"#e8dcc8", fontFamily:"'DM Sans',sans-serif", overflowY:"auto" },
+  wrap:     { minHeight:"100vh", background:t.bg, color:t.text, fontFamily:t.fontSans, overflowY:"auto" },
   header:   { padding:"32px 24px 0", maxWidth:480, margin:"0 auto" },
-  logo:     { fontFamily:"'DM Serif Display',serif", fontSize:22, color:"#f59e0b", marginBottom:16 },
-  title:    { fontFamily:"'DM Serif Display',serif", fontSize:26, lineHeight:1.2, marginBottom:8 },
-  sub:      { fontSize:13, color:"#7a8fa6", lineHeight:1.6, marginBottom:8 },
+  logo:     { fontFamily:t.fontDisplay, fontSize:22, color:t.pink, marginBottom:16 },
+  title:    { fontFamily:t.fontDisplay, fontSize:26, lineHeight:1.2, marginBottom:8, color:t.text },
+  sub:      { fontSize:13, color:t.textMuted, lineHeight:1.6, marginBottom:8 },
   form:     { padding:"24px 24px 48px", maxWidth:480, margin:"0 auto", display:"flex", flexDirection:"column", gap:20 },
   group:    { display:"flex", flexDirection:"column", gap:6 },
-  label:    { fontSize:13, fontWeight:600, color:"#e8dcc8" },
-  sublabel: { fontSize:11, color:"#7a8fa6", marginBottom:4 },
-  hint:     { fontSize:11, color:"#7a8fa6", marginTop:4, lineHeight:1.5 },
-  input:    { background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.08)", borderRadius:10, padding:"11px 14px", color:"#e8dcc8", fontSize:14, fontFamily:"'DM Sans',sans-serif", outline:"none", width:"100%" },
-  btn:      { background:"#f59e0b", color:"#0f1f35", border:"none", borderRadius:10, padding:"13px", fontSize:14, fontWeight:600, cursor:"pointer", fontFamily:"'DM Sans',sans-serif", marginTop:4 },
-  error:    { fontSize:13, color:"#ef4444", textAlign:"center" },
-  note:     { fontSize:12, color:"#7a8fa6", textAlign:"center" },
+  label:    { fontSize:13, fontWeight:600, color:t.text },
+  sublabel: { fontSize:11, color:t.textMuted, marginBottom:4 },
+  hint:     { fontSize:11, color:t.textMuted, marginTop:4, lineHeight:1.5 },
+  input:    { background:t.bgCard, border:`1px solid ${t.border}`, borderRadius:t.r.md, padding:"11px 14px", color:t.text, fontSize:14, fontFamily:t.fontSans, outline:"none", width:"100%" },
+  btn:      { background:t.pink, color:t.navy, border:"none", borderRadius:t.r.md, padding:"13px", fontSize:14, fontWeight:600, cursor:"pointer", fontFamily:t.fontSans, marginTop:4 },
+  error:    { fontSize:13, color:t.err, textAlign:"center" },
+  note:     { fontSize:12, color:t.textMuted, textAlign:"center" },
 };

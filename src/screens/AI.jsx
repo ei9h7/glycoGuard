@@ -6,6 +6,7 @@ import {
 import { db, auth } from "../firebase";
 import { useChild } from "../hooks/useChild";
 import { searchVectors } from "../services/vectorStore";
+import { t, shadows } from "../styles/tokens";
 
 const OPENROUTER_KEY = import.meta.env.VITE_OPENROUTER_API_KEY;
 const MODEL = "openrouter/auto";
@@ -278,7 +279,7 @@ export default function AI() {
 
   if (!child) {
     return (
-      <div style={{ padding: 24, color: "#7a8fa6", fontFamily: "'DM Sans', sans-serif" }}>
+      <div style={{ padding: 24, color: t.textMuted, fontFamily: t.fontSans }}>
         Loading…
       </div>
     );
@@ -386,8 +387,8 @@ export default function AI() {
 
 const s = {
   root: {
-    fontFamily: "'DM Sans', sans-serif",
-    color: "#e8dcc8",
+    fontFamily: t.fontSans,
+    color: t.text,
     // Extra bottom padding: input bar (~72px) sits above nav (80px already in AppShell)
     paddingBottom: 76,
   },
@@ -396,42 +397,42 @@ const s = {
     alignItems: "center",
     justifyContent: "space-between",
     padding: "16px 20px 12px",
-    borderBottom: "1px solid rgba(255,255,255,0.08)",
-    background: "rgba(15,31,53,0.92)",
+    borderBottom: `1px solid ${t.border}`,
+    background: "rgba(255,255,255,0.92)",
     backdropFilter: "blur(12px)",
     position: "sticky",
     top: 0,
     zIndex: 10,
   },
   headerTitle: {
-    fontFamily: "'DM Serif Display', serif",
+    fontFamily: t.fontDisplay,
     fontSize: 20,
-    color: "#f59e0b",
+    color: t.pink,
     letterSpacing: "-0.3px",
   },
-  headerSub: { fontSize: 11, color: "#7a8fa6", marginTop: 2 },
+  headerSub: { fontSize: 11, color: t.textMuted, marginTop: 2 },
   childPill: {
     display: "flex",
     alignItems: "center",
     gap: 8,
-    background: "#1e3654",
-    borderRadius: 20,
+    background: t.bgSurface,
+    borderRadius: t.r.pill,
     padding: "6px 12px 6px 8px",
-    border: "1px solid rgba(255,255,255,0.08)",
+    border: `1px solid ${t.border}`,
   },
   avatar: {
     width: 26,
     height: 26,
     borderRadius: "50%",
-    background: "linear-gradient(135deg,#5fa882,#f59e0b)",
+    background: `linear-gradient(135deg,${t.green},${t.pink})`,
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     fontSize: 12,
     fontWeight: 600,
-    color: "#0f1f35",
+    color: t.navy,
   },
-  childName: { fontSize: 13, fontWeight: 500, color: "#e8dcc8" },
+  childName: { fontSize: 13, fontWeight: 500, color: t.text },
 
   feed: {
     padding: "16px 16px 8px",
@@ -447,20 +448,20 @@ const s = {
     width: 30,
     height: 30,
     borderRadius: "50%",
-    background: "linear-gradient(135deg,#f59e0b,#5fa882)",
+    background: `linear-gradient(135deg,${t.pink},${t.green})`,
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     fontSize: 13,
     fontWeight: 700,
-    color: "#0f1f35",
+    color: t.navy,
     flexShrink: 0,
     marginTop: 2,
   },
 
   bubbleUser: {
-    background: "#f59e0b",
-    color: "#0f1f35",
+    background: t.pink,
+    color: t.navy,
     padding: "10px 14px",
     borderRadius: "18px 18px 4px 18px",
     maxWidth: "82%",
@@ -470,15 +471,16 @@ const s = {
     whiteSpace: "pre-wrap",
   },
   bubbleBot: {
-    background: "rgba(30,54,84,0.85)",
-    border: "1px solid rgba(255,255,255,0.08)",
-    color: "#e8dcc8",
+    background: t.bgCard,
+    border: `1px solid ${t.border}`,
+    color: t.text,
     padding: "12px 14px",
     borderRadius: "4px 18px 18px 18px",
     maxWidth: "86%",
     fontSize: 14,
     lineHeight: 1.65,
     whiteSpace: "pre-wrap",
+    boxShadow: shadows.card,
   },
 
   dots: { display: "flex", alignItems: "center", height: 22, gap: 4 },
@@ -487,7 +489,7 @@ const s = {
     width: 7,
     height: 7,
     borderRadius: "50%",
-    background: "#7a8fa6",
+    background: t.textMuted,
     animation: "bounce 1.2s infinite",
   },
 
@@ -502,22 +504,23 @@ const s = {
     fontWeight: 600,
     textTransform: "uppercase",
     letterSpacing: "1.2px",
-    color: "#7a8fa6",
+    color: t.textMuted,
     paddingLeft: 2,
     marginBottom: 2,
   },
   sugBtn: {
-    background: "rgba(30,54,84,0.7)",
-    border: "1px solid rgba(245,158,11,0.22)",
-    color: "#f59e0b",
+    background: t.bgCard,
+    border: `1px solid rgba(255,93,168,0.22)`,
+    color: t.pink,
     padding: "11px 14px",
-    borderRadius: 14,
+    borderRadius: t.r.lg,
     fontSize: 13,
     lineHeight: 1.45,
     cursor: "pointer",
     textAlign: "left",
-    fontFamily: "'DM Sans', sans-serif",
+    fontFamily: t.fontSans,
     transition: "background 0.15s",
+    boxShadow: shadows.card,
   },
 
   // Fixed above the 80px nav bar
@@ -532,21 +535,21 @@ const s = {
     alignItems: "flex-end",
     gap: 8,
     padding: "10px 14px",
-    background: "rgba(15,31,53,0.97)",
-    borderTop: "1px solid rgba(255,255,255,0.08)",
+    background: "rgba(255,255,255,0.97)",
+    borderTop: `1px solid ${t.border}`,
     backdropFilter: "blur(16px)",
     zIndex: 15,
     boxSizing: "border-box",
   },
   textarea: {
     flex: 1,
-    background: "rgba(255,255,255,0.06)",
-    border: "1px solid rgba(255,255,255,0.1)",
-    borderRadius: 14,
+    background: t.bgSurface,
+    border: `1px solid ${t.border}`,
+    borderRadius: t.r.lg,
     padding: "10px 14px",
-    color: "#e8dcc8",
+    color: t.text,
     fontSize: 14,
-    fontFamily: "'DM Sans', sans-serif",
+    fontFamily: t.fontSans,
     outline: "none",
     resize: "none",
     lineHeight: 1.5,
@@ -557,8 +560,8 @@ const s = {
     width: 42,
     height: 42,
     borderRadius: "50%",
-    background: "#f59e0b",
-    color: "#0f1f35",
+    background: t.pink,
+    color: t.navy,
     border: "none",
     fontSize: 20,
     fontWeight: 700,
@@ -567,7 +570,7 @@ const s = {
     alignItems: "center",
     justifyContent: "center",
     flexShrink: 0,
-    fontFamily: "'DM Sans', sans-serif",
+    fontFamily: t.fontSans,
     transition: "opacity 0.15s, transform 0.1s",
   },
 };

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useChild } from "../hooks/useChild";
 import { usePatterns } from "../hooks/usePatterns";
+import { t, shadows } from "../styles/tokens";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -12,9 +13,9 @@ const SECTIONS = [
 ];
 
 function confidenceMeta(dataPoints) {
-  if (dataPoints < 5)  return { label: "Low",    color: "#f59e0b", bg: "rgba(245,158,11,0.13)"  };
-  if (dataPoints < 15) return { label: "Medium",  color: "#7ec8a4", bg: "rgba(126,200,164,0.13)" };
-  return                      { label: "High",    color: "#22c55e", bg: "rgba(34,197,94,0.13)"   };
+  if (dataPoints < 5)  return { label: "Low",    color: t.warn,      bg: t.warnBg };
+  if (dataPoints < 15) return { label: "Medium",  color: t.greenDark, bg: `rgba(0,145,106,0.1)` };
+  return                      { label: "High",    color: t.green,     bg: t.okBg   };
 }
 
 function fmtLastUpdated(date) {
@@ -59,10 +60,10 @@ export default function Reports() {
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
         .pat-card  { transition: border-color 0.15s; }
-        .pat-card:hover { border-color: rgba(255,255,255,0.18) !important; }
-        .pat-ask:hover  { background: rgba(245,158,11,0.2) !important; }
+        .pat-card:hover { border-color: rgba(255,93,168,0.3) !important; }
+        .pat-ask:hover  { background: rgba(255,93,168,0.12) !important; }
         .pat-refresh:hover:not(:disabled) { opacity: 0.82; }
-        .pat-report:hover { border-color: rgba(255,255,255,0.18) !important; }
+        .pat-report:hover { border-color: rgba(255,93,168,0.3) !important; }
       `}</style>
 
       <div style={s.root}>
@@ -192,8 +193,8 @@ export default function Reports() {
 
 const s = {
   root: {
-    fontFamily: "'DM Sans', sans-serif",
-    color: "#e8dcc8",
+    fontFamily: t.fontSans,
+    color: t.text,
     paddingBottom: 32,
   },
   header: {
@@ -201,30 +202,30 @@ const s = {
     alignItems: "center",
     justifyContent: "space-between",
     padding: "16px 20px 12px",
-    borderBottom: "1px solid rgba(255,255,255,0.08)",
-    background: "rgba(15,31,53,0.92)",
+    borderBottom: `1px solid ${t.border}`,
+    background: "rgba(255,255,255,0.92)",
     backdropFilter: "blur(12px)",
     position: "sticky",
     top: 0,
     zIndex: 10,
   },
   headerTitle: {
-    fontFamily: "'DM Serif Display', serif",
+    fontFamily: t.fontDisplay,
     fontSize: 20,
-    color: "#f59e0b",
+    color: t.pink,
     letterSpacing: "-0.3px",
   },
-  headerSub: { fontSize: 11, color: "#7a8fa6", marginTop: 2 },
+  headerSub: { fontSize: 11, color: t.textMuted, marginTop: 2 },
   refreshBtn: {
-    background: "#f59e0b",
-    color: "#0f1f35",
+    background: t.pink,
+    color: t.navy,
     border: "none",
-    borderRadius: 10,
+    borderRadius: t.r.md,
     padding: "8px 14px",
     fontSize: 13,
     fontWeight: 600,
     cursor: "pointer",
-    fontFamily: "'DM Sans', sans-serif",
+    fontFamily: t.fontSans,
     transition: "opacity 0.15s",
     whiteSpace: "nowrap",
   },
@@ -247,13 +248,13 @@ const s = {
   },
   emptyIcon:  { fontSize: 40 },
   emptyTitle: {
-    fontFamily: "'DM Serif Display', serif",
+    fontFamily: t.fontDisplay,
     fontSize: 20,
-    color: "#e8dcc8",
+    color: t.text,
   },
   emptyMuted: {
     fontSize: 14,
-    color: "#7a8fa6",
+    color: t.textMuted,
     lineHeight: 1.65,
     maxWidth: 280,
   },
@@ -269,16 +270,17 @@ const s = {
     fontWeight: 600,
     textTransform: "uppercase",
     letterSpacing: "1.2px",
-    color: "#7a8fa6",
+    color: t.textMuted,
     marginBottom: 2,
   },
 
   // Pattern card
   card: {
-    background: "rgba(30,54,84,0.7)",
-    border: "1px solid rgba(255,255,255,0.08)",
-    borderRadius: 16,
+    background: t.bgCard,
+    border: `1px solid ${t.border}`,
+    borderRadius: t.r.xl,
     padding: 16,
+    boxShadow: shadows.card,
   },
   cardTop: {
     display: "flex",
@@ -290,7 +292,7 @@ const s = {
   cardTitle: {
     fontSize: 15,
     fontWeight: 600,
-    color: "#e8dcc8",
+    color: t.text,
     flex: 1,
     lineHeight: 1.3,
   },
@@ -298,13 +300,13 @@ const s = {
     fontSize: 11,
     fontWeight: 600,
     padding: "3px 9px",
-    borderRadius: 20,
+    borderRadius: t.r.pill,
     flexShrink: 0,
     letterSpacing: "0.3px",
   },
   cardDesc: {
     fontSize: 13,
-    color: "#b8cce0",
+    color: t.textSecondary,
     lineHeight: 1.65,
     marginBottom: 10,
   },
@@ -313,17 +315,17 @@ const s = {
   },
   dataPoints: {
     fontSize: 11,
-    color: "#7a8fa6",
+    color: t.textMuted,
   },
   askBtn: {
-    background: "rgba(245,158,11,0.1)",
-    border: "1px solid rgba(245,158,11,0.25)",
-    color: "#f59e0b",
+    background: `rgba(255,93,168,0.07)`,
+    border: `1px solid rgba(255,93,168,0.25)`,
+    color: t.pink,
     padding: "9px 14px",
-    borderRadius: 10,
+    borderRadius: t.r.md,
     fontSize: 13,
     cursor: "pointer",
-    fontFamily: "'DM Sans', sans-serif",
+    fontFamily: t.fontSans,
     width: "100%",
     textAlign: "center",
     transition: "background 0.15s",
@@ -337,25 +339,25 @@ const s = {
     paddingBottom: 8,
   },
   reportBtn: {
-    background: "rgba(30,54,84,0.5)",
-    border: "1px solid rgba(255,255,255,0.08)",
-    color: "#7a8fa6",
+    background: t.bgSurface,
+    border: `1px solid ${t.border}`,
+    color: t.textMuted,
     padding: "14px",
-    borderRadius: 14,
+    borderRadius: t.r.lg,
     fontSize: 14,
     cursor: "pointer",
-    fontFamily: "'DM Sans', sans-serif",
+    fontFamily: t.fontSans,
     width: "100%",
     textAlign: "center",
     transition: "border-color 0.15s",
   },
   reportMsg: {
-    background: "rgba(15,31,53,0.5)",
-    border: "1px solid rgba(255,255,255,0.06)",
-    borderRadius: 12,
+    background: t.bgSurface,
+    border: `1px solid ${t.border}`,
+    borderRadius: t.r.lg,
     padding: "12px 14px",
     fontSize: 13,
-    color: "#7a8fa6",
+    color: t.textMuted,
     lineHeight: 1.65,
   },
 };

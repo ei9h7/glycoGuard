@@ -7,6 +7,7 @@ import { useAuth } from "../hooks/useAuth";
 import { useUnits } from "../hooks/useUnits";
 import { usePreferenceNotes } from "../hooks/usePreferenceNotes";
 import { useDocuments } from "../hooks/useDocuments";
+import { t, shadows } from "../styles/tokens";
 
 const CGM_OPTIONS = [
   "None / Not using CGM",
@@ -126,11 +127,11 @@ export default function Settings() {
   };
 
   if (!child) return (
-    <div style={{ padding:24, color:"#7a8fa6", fontSize:13 }}>Loading profile…</div>
+    <div style={{ padding:24, color:t.textMuted, fontSize:13 }}>Loading profile…</div>
   );
 
   return (
-    <div style={{ fontFamily:"'DM Sans',sans-serif", color:"#e8dcc8", paddingBottom:32 }}>
+    <div style={{ fontFamily:t.fontSans, color:t.text, paddingBottom:32 }}>
 
       {/* Header */}
       <div style={s.header}>
@@ -151,10 +152,10 @@ export default function Settings() {
           <div style={s.profileRow}>
             <div style={s.avatar}>{child.name?.[0] || "?"}</div>
             <div>
-              <div style={{ fontSize:18, fontFamily:"'DM Serif Display',serif" }}>{child.name}</div>
-              <div style={{ fontSize:12, color:"#7a8fa6", marginTop:2 }}>{child.diagnosis}</div>
+              <div style={{ fontSize:18, fontFamily:t.fontDisplay }}>{child.name}</div>
+              <div style={{ fontSize:12, color:t.textMuted, marginTop:2 }}>{child.diagnosis}</div>
             </div>
-            {saved && <div style={{ marginLeft:"auto", fontSize:12, color:"#7ec8a4" }}>✓ Saved</div>}
+            {saved && <div style={{ marginLeft:"auto", fontSize:12, color:t.green }}>✓ Saved</div>}
           </div>
 
           {[
@@ -166,7 +167,7 @@ export default function Settings() {
             <div key={label} style={s.detailRow}>
               <span style={{ fontSize:16, flexShrink:0 }}>{icon}</span>
               <div style={{ flex:1 }}>
-                <div style={{ fontSize:11, color:"#7a8fa6", marginBottom:2 }}>{label}</div>
+                <div style={{ fontSize:11, color:t.textMuted, marginBottom:2 }}>{label}</div>
                 <div style={{ fontSize:14 }}>{value}</div>
               </div>
             </div>
@@ -274,7 +275,7 @@ export default function Settings() {
 
       <div style={{ padding: "0 16px" }}>
         <div style={s.card}>
-          <div style={{ fontSize: 12, color: "#7a8fa6", marginBottom: 12, lineHeight: 1.5 }}>
+          <div style={{ fontSize: 12, color: t.textMuted, marginBottom: 12, lineHeight: 1.5 }}>
             Notes saved here give the AI assistant context about {child.name} — food preferences, known triggers, clinical observations.
           </div>
 
@@ -293,12 +294,12 @@ export default function Settings() {
           </button>
 
           {notesLoading ? (
-            <div style={{ fontSize: 12, color: "#7a8fa6", marginTop: 14 }}>Loading…</div>
+            <div style={{ fontSize: 12, color: t.textMuted, marginTop: 14 }}>Loading…</div>
           ) : notes.length > 0 && (
-            <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)", marginTop: 14, paddingTop: 12, display: "flex", flexDirection: "column", gap: 8 }}>
+            <div style={{ borderTop: `1px solid ${t.border}`, marginTop: 14, paddingTop: 12, display: "flex", flexDirection: "column", gap: 8 }}>
               {notes.map(note => (
                 <div key={note.id} style={s.noteRow}>
-                  <div style={{ flex: 1, fontSize: 13, color: "#e8dcc8", lineHeight: 1.5 }}>{note.content}</div>
+                  <div style={{ flex: 1, fontSize: 13, color: t.text, lineHeight: 1.5 }}>{note.content}</div>
                   <button style={s.deleteBtn} onClick={() => removeNote(note.id)} aria-label="Delete note">✕</button>
                 </div>
               ))}
@@ -314,7 +315,7 @@ export default function Settings() {
 
       <div style={{ padding: "0 16px" }}>
         <div style={s.card}>
-          <div style={{ fontSize: 12, color: "#7a8fa6", marginBottom: 12, lineHeight: 1.5 }}>
+          <div style={{ fontSize: 12, color: t.textMuted, marginBottom: 12, lineHeight: 1.5 }}>
             Upload PDFs to give the AI assistant access to lab results and provider letters.
           </div>
 
@@ -339,18 +340,18 @@ export default function Settings() {
           <input ref={letterInputRef} type="file" accept="application/pdf" style={{ display: "none" }} onChange={(e) => handleFileChange("provider_note", e)}/>
 
           {docsLoading ? (
-            <div style={{ fontSize: 12, color: "#7a8fa6", marginTop: 14 }}>Loading…</div>
+            <div style={{ fontSize: 12, color: t.textMuted, marginTop: 14 }}>Loading…</div>
           ) : documents.length > 0 && (
-            <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)", marginTop: 14, paddingTop: 12, display: "flex", flexDirection: "column", gap: 8 }}>
+            <div style={{ borderTop: `1px solid ${t.border}`, marginTop: 14, paddingTop: 12, display: "flex", flexDirection: "column", gap: 8 }}>
               {documents.map(d => (
                 <div key={d.id} style={s.docRow}>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13, color: "#e8dcc8", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{d.filename}</div>
+                    <div style={{ fontSize: 13, color: t.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{d.filename}</div>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
                       <span style={{ ...s.typeBadge, ...(d.type === "lab_result" ? s.typeBadgeLab : s.typeBadgeLetter) }}>
                         {d.type === "lab_result" ? "Lab Result" : "Provider Letter"}
                       </span>
-                      <span style={{ fontSize: 11, color: "#7a8fa6" }}>
+                      <span style={{ fontSize: 11, color: t.textMuted }}>
                         {d.createdAt?.toDate?.().toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" }) ?? "—"}
                       </span>
                     </div>
@@ -373,7 +374,7 @@ export default function Settings() {
           <div style={s.detailRow}>
             <span style={{ fontSize:16 }}>📧</span>
             <div style={{ flex:1 }}>
-              <div style={{ fontSize:11, color:"#7a8fa6", marginBottom:2 }}>Signed in as</div>
+              <div style={{ fontSize:11, color:t.textMuted, marginBottom:2 }}>Signed in as</div>
               <div style={{ fontSize:14 }}>{user?.email || "—"}</div>
             </div>
           </div>
@@ -400,9 +401,9 @@ export default function Settings() {
               <span style={{ fontSize:16 }}>{icon}</span>
               <div style={{ flex:1 }}>
                 <div style={{ fontSize:14, fontWeight:500 }}>{title}</div>
-                <div style={{ fontSize:12, color:"#7a8fa6", marginTop:2 }}>{desc}</div>
+                <div style={{ fontSize:12, color:t.textMuted, marginTop:2 }}>{desc}</div>
               </div>
-              <span style={{ color:"#7a8fa6", fontSize:12 }}>Coming soon</span>
+              <span style={{ color:t.textMuted, fontSize:12 }}>Coming soon</span>
             </div>
           </div>
         ))}
@@ -413,30 +414,30 @@ export default function Settings() {
 }
 
 const s = {
-  header:      { padding:"20px 20px 12px", borderBottom:"1px solid rgba(255,255,255,0.08)", background:"rgba(15,31,53,0.85)", backdropFilter:"blur(12px)", position:"sticky", top:0, zIndex:10 },
-  logo:        { fontFamily:"'DM Serif Display',serif", fontSize:22, color:"#f59e0b" },
-  sectionHead: { display:"flex", alignItems:"center", justifyContent:"space-between", padding:"24px 20px 10px" },
-  sectionTitle:{ fontSize:12, fontWeight:600, textTransform:"uppercase", letterSpacing:"1.2px", color:"#7a8fa6" },
-  actionBtn:   { fontSize:12, color:"#f59e0b", background:"none", border:"none", fontFamily:"'DM Sans',sans-serif", fontWeight:600, cursor:"pointer" },
-  card:        { margin:"0 16px", background:"rgba(30,54,84,0.7)", border:"1px solid rgba(255,255,255,0.08)", borderRadius:16, padding:"14px 16px", backdropFilter:"blur(8px)" },
-  profileRow:  { display:"flex", alignItems:"center", gap:12, marginBottom:16, paddingBottom:16, borderBottom:"1px solid rgba(255,255,255,0.08)" },
-  avatar:      { width:44, height:44, borderRadius:"50%", background:"linear-gradient(135deg,#5fa882,#f59e0b)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:18, fontWeight:700, color:"#0f1f35", flexShrink:0 },
-  detailRow:   { display:"flex", alignItems:"center", gap:12, padding:"10px 0", borderBottom:"1px solid rgba(255,255,255,0.05)" },
-  group:       { marginBottom:16 },
-  label:       { display:"block", fontSize:13, fontWeight:600, marginBottom:6, color:"#e8dcc8" },
-  sublabel:    { fontSize:11, color:"#7a8fa6", marginBottom:4 },
-  input:       { width:"100%", background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.08)", borderRadius:10, padding:"11px 14px", color:"#e8dcc8", fontSize:14, fontFamily:"'DM Sans',sans-serif", outline:"none" },
-  btn:         { flex:2, background:"#f59e0b", color:"#0f1f35", border:"none", borderRadius:10, padding:"11px", fontSize:13, fontWeight:600, cursor:"pointer", fontFamily:"'DM Sans',sans-serif" },
-  btnSecondary:{ flex:1, background:"transparent", color:"#e8dcc8", border:"1px solid rgba(255,255,255,0.08)", borderRadius:10, padding:"11px", fontSize:13, cursor:"pointer", fontFamily:"'DM Sans',sans-serif" },
-  error:       { fontSize:13, color:"#ef4444", marginBottom:10 },
-  signOutBtn:  { width:"100%", padding:"12px", borderRadius:12, background:"rgba(239,68,68,0.1)", border:"1px solid rgba(239,68,68,0.2)", color:"#fca5a5", fontSize:14, fontWeight:600, cursor:"pointer", fontFamily:"'DM Sans',sans-serif" },
-  unitBtn:     { flex:1, padding:"8px 0", borderRadius:10, border:"1px solid rgba(255,255,255,0.08)", background:"rgba(255,255,255,0.04)", color:"#7a8fa6", fontSize:13, fontWeight:600, cursor:"pointer", fontFamily:"'DM Sans',sans-serif" },
-  unitBtnActive:{ background:"rgba(245,158,11,0.15)", borderColor:"rgba(245,158,11,0.4)", color:"#f59e0b" },
-  noteRow:        { display:"flex", alignItems:"flex-start", gap:10, padding:"8px 12px", background:"rgba(255,255,255,0.03)", borderRadius:10, border:"1px solid rgba(255,255,255,0.05)" },
-  deleteBtn:      { background:"none", border:"none", color:"#7a8fa6", fontSize:14, cursor:"pointer", padding:"2px 4px", lineHeight:1, flexShrink:0, fontFamily:"'DM Sans',sans-serif" },
-  uploadBtn:      { flex:1, padding:"10px 8px", borderRadius:10, border:"1px solid rgba(255,255,255,0.08)", background:"rgba(255,255,255,0.04)", color:"#e8dcc8", fontSize:13, fontWeight:500, cursor:"pointer", fontFamily:"'DM Sans',sans-serif" },
-  docRow:         { display:"flex", alignItems:"center", gap:10, padding:"10px 12px", background:"rgba(255,255,255,0.03)", borderRadius:10, border:"1px solid rgba(255,255,255,0.05)" },
-  typeBadge:      { fontSize:10, fontWeight:600, padding:"2px 7px", borderRadius:20, letterSpacing:"0.4px", textTransform:"uppercase" },
-  typeBadgeLab:   { background:"rgba(95,168,130,0.15)", color:"#7ec8a4" },
-  typeBadgeLetter:{ background:"rgba(245,158,11,0.12)", color:"#f59e0b" },
+  header:         { padding:"20px 20px 12px", borderBottom:`1px solid ${t.border}`, background:"rgba(255,255,255,0.92)", backdropFilter:"blur(12px)", position:"sticky", top:0, zIndex:10 },
+  logo:           { fontFamily:t.fontDisplay, fontSize:22, color:t.pink },
+  sectionHead:    { display:"flex", alignItems:"center", justifyContent:"space-between", padding:"24px 20px 10px" },
+  sectionTitle:   { fontSize:12, fontWeight:600, textTransform:"uppercase", letterSpacing:"1.2px", color:t.textMuted },
+  actionBtn:      { fontSize:12, color:t.pink, background:"none", border:"none", fontFamily:t.fontSans, fontWeight:600, cursor:"pointer" },
+  card:           { margin:"0 16px", background:t.bgCard, border:`1px solid ${t.border}`, borderRadius:t.r.xl, padding:"14px 16px", boxShadow:shadows.card },
+  profileRow:     { display:"flex", alignItems:"center", gap:12, marginBottom:16, paddingBottom:16, borderBottom:`1px solid ${t.border}` },
+  avatar:         { width:44, height:44, borderRadius:"50%", background:`linear-gradient(135deg,${t.green},${t.pink})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:18, fontWeight:700, color:t.navy, flexShrink:0 },
+  detailRow:      { display:"flex", alignItems:"center", gap:12, padding:"10px 0", borderBottom:`1px solid ${t.border}` },
+  group:          { marginBottom:16 },
+  label:          { display:"block", fontSize:13, fontWeight:600, marginBottom:6, color:t.text },
+  sublabel:       { fontSize:11, color:t.textMuted, marginBottom:4 },
+  input:          { width:"100%", background:t.bgSurface, border:`1px solid ${t.border}`, borderRadius:t.r.md, padding:"11px 14px", color:t.text, fontSize:14, fontFamily:t.fontSans, outline:"none" },
+  btn:            { flex:2, background:t.pink, color:t.navy, border:"none", borderRadius:t.r.md, padding:"11px", fontSize:13, fontWeight:600, cursor:"pointer", fontFamily:t.fontSans },
+  btnSecondary:   { flex:1, background:"transparent", color:t.textSecondary, border:`1px solid ${t.border}`, borderRadius:t.r.md, padding:"11px", fontSize:13, cursor:"pointer", fontFamily:t.fontSans },
+  error:          { fontSize:13, color:t.err, marginBottom:10 },
+  signOutBtn:     { width:"100%", padding:"12px", borderRadius:t.r.lg, background:t.errBg, border:`1px solid ${t.errBorder}`, color:t.err, fontSize:14, fontWeight:600, cursor:"pointer", fontFamily:t.fontSans },
+  unitBtn:        { flex:1, padding:"8px 0", borderRadius:t.r.md, border:`1px solid ${t.border}`, background:t.bgSurface, color:t.textMuted, fontSize:13, fontWeight:600, cursor:"pointer", fontFamily:t.fontSans },
+  unitBtnActive:  { background:`rgba(255,93,168,0.1)`, borderColor:`rgba(255,93,168,0.4)`, color:t.pink },
+  noteRow:        { display:"flex", alignItems:"flex-start", gap:10, padding:"8px 12px", background:t.bgSurface, borderRadius:t.r.md, border:`1px solid ${t.border}` },
+  deleteBtn:      { background:"none", border:"none", color:t.textMuted, fontSize:14, cursor:"pointer", padding:"2px 4px", lineHeight:1, flexShrink:0, fontFamily:t.fontSans },
+  uploadBtn:      { flex:1, padding:"10px 8px", borderRadius:t.r.md, border:`1px solid ${t.border}`, background:t.bgSurface, color:t.text, fontSize:13, fontWeight:500, cursor:"pointer", fontFamily:t.fontSans },
+  docRow:         { display:"flex", alignItems:"center", gap:10, padding:"10px 12px", background:t.bgSurface, borderRadius:t.r.md, border:`1px solid ${t.border}` },
+  typeBadge:      { fontSize:10, fontWeight:600, padding:"2px 7px", borderRadius:t.r.pill, letterSpacing:"0.4px", textTransform:"uppercase" },
+  typeBadgeLab:   { background:`rgba(0,214,143,0.12)`, color:t.greenDark },
+  typeBadgeLetter:{ background:`rgba(255,93,168,0.1)`,  color:t.pink },
 };
