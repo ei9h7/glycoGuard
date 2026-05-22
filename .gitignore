@@ -42,6 +42,11 @@ firebase-debug.log
 # Claude Code internals — not project code
 .agents
 .claude
+CLAUDE.md
+
+#copilot internals
+.github/instructions
+copilot-instructions.md
 
 # Testing
 coverage
