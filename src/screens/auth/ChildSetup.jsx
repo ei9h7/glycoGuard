@@ -3,6 +3,7 @@ import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { db, auth } from "../../firebase";
 import { useNavigate } from "react-router-dom";
 import { t } from "../../styles/tokens";
+import GlycoGuardLogo from "../../components/GlycoGuardLogo";
 
 const CGM_OPTIONS = [
   "None / Not using CGM",
@@ -73,7 +74,9 @@ export default function ChildSetup() {
   return (
     <div style={s.wrap}>
       <div style={s.header}>
-        <div style={s.logo}>GlycoGuard</div>
+        <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'center' }}>
+          <GlycoGuardLogo height={56} />
+        </div>
         <div style={s.title}>Set up your child's profile</div>
         <div style={s.sub}>This helps GlycoGuard personalise alerts, recommendations, and reports.</div>
       </div>
@@ -165,7 +168,6 @@ export default function ChildSetup() {
 const s = {
   wrap:     { minHeight:"100vh", background:t.bg, color:t.text, fontFamily:t.fontSans, overflowY:"auto" },
   header:   { padding:"32px 24px 0", maxWidth:480, margin:"0 auto" },
-  logo:     { fontFamily:t.fontDisplay, fontSize:22, color:t.pink, marginBottom:16 },
   title:    { fontFamily:t.fontDisplay, fontSize:26, lineHeight:1.2, marginBottom:8, color:t.text },
   sub:      { fontSize:13, color:t.textMuted, lineHeight:1.6, marginBottom:8 },
   form:     { padding:"24px 24px 48px", maxWidth:480, margin:"0 auto", display:"flex", flexDirection:"column", gap:20 },

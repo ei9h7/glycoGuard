@@ -4,6 +4,7 @@ import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "../../firebase";
 import { useNavigate, Link } from "react-router-dom";
 import { t } from "../../styles/tokens";
+import GlycoGuardLogo from "../../components/GlycoGuardLogo";
 
 export default function Register() {
   const [name,     setName]     = useState("");
@@ -37,7 +38,9 @@ export default function Register() {
 
   return (
     <div style={s.wrap}>
-      <div style={s.logo}>GlycoGuard</div>
+      <div style={{ marginBottom: 8 }}>
+        <GlycoGuardLogo height={56} />
+      </div>
       <div style={s.sub}>Create your account</div>
       <form onSubmit={handleSubmit} style={s.form}>
         <input style={s.input} type="text"     placeholder="Your name" value={name}     onChange={e=>setName(e.target.value)}     required />
@@ -57,7 +60,6 @@ export default function Register() {
 
 const s = {
   wrap:  { minHeight:"100vh", background:t.bg, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:24, fontFamily:t.fontSans, color:t.text },
-  logo:  { fontFamily:t.fontDisplay, fontSize:32, color:t.pink, marginBottom:6 },
   sub:   { fontSize:13, color:t.textMuted, marginBottom:40 },
   form:  { width:"100%", maxWidth:340, display:"flex", flexDirection:"column", gap:12 },
   input: { background:t.bgCard, border:`1px solid ${t.border}`, borderRadius:t.r.md, padding:"11px 14px", color:t.text, fontSize:14, fontFamily:t.fontSans, outline:"none" },
