@@ -3,6 +3,7 @@ import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../../firebase";
 import { useNavigate, Link } from "react-router-dom";
 import { t } from "../../styles/tokens";
+import GlycoGuardLogo from "../../components/GlycoGuardLogo";
 
 export default function Login() {
   const [email,    setEmail]    = useState("");
@@ -26,7 +27,9 @@ export default function Login() {
 
   return (
     <div style={s.wrap}>
-      <div style={s.logo}>GlycoGuard</div>
+      <div style={{ marginBottom: 8 }}>
+        <GlycoGuardLogo height={56} />
+      </div>
       <div style={s.sub}>Pediatric Hypoglycemia Manager</div>
       <form onSubmit={handleSubmit} style={s.form}>
         <input style={s.input} type="email"    placeholder="Email"    value={email}    onChange={e=>setEmail(e.target.value)}    required />
@@ -45,7 +48,6 @@ export default function Login() {
 
 const s = {
   wrap:  { minHeight:"100vh", background:t.bg, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:24, fontFamily:t.fontSans, color:t.text },
-  logo:  { fontFamily:t.fontDisplay, fontSize:32, color:t.pink, marginBottom:6 },
   sub:   { fontSize:13, color:t.textMuted, marginBottom:40 },
   form:  { width:"100%", maxWidth:340, display:"flex", flexDirection:"column", gap:12 },
   input: { background:t.bgCard, border:`1px solid ${t.border}`, borderRadius:t.r.md, padding:"11px 14px", color:t.text, fontSize:14, fontFamily:t.fontSans, outline:"none" },

@@ -6,6 +6,7 @@ import { upsertVector } from "../services/vectorStore";
 import { useChild } from "../hooks/useChild";
 import { useUnits } from "../hooks/useUnits";
 import { t, shadows } from "../styles/tokens";
+import GlycoGuardLogo from "../components/GlycoGuardLogo";
 import LogMealModal from "../components/LogMealModal";
 import LogGlucoseModal from "../components/LogGlucoseModal";
 
@@ -277,10 +278,7 @@ export default function Home() {
 
         {/* Header */}
         <div style={s.header}>
-          <div>
-            <div style={s.logo}>GlycoGuard</div>
-            <div style={s.headerSub}>Pediatric Hypoglycemia Manager</div>
-          </div>
+          <GlycoGuardLogo height={32} />
           <div style={s.childPill}>
             <div style={s.childAvatar}>{child?.name?.[0] || "?"}</div>
             <span style={s.childName}>{child?.name || "Child"}</span>
@@ -450,8 +448,6 @@ export default function Home() {
 
 const s = {
   header:       { display:"flex", alignItems:"center", justifyContent:"space-between", padding:"16px 20px 12px", borderBottom:`1px solid ${t.border}`, background:"rgba(255,255,255,0.92)", backdropFilter:"blur(12px)", position:"sticky", top:0, zIndex:10 },
-  logo:         { fontFamily:t.fontDisplay, fontSize:20, color:t.pink, letterSpacing:"-0.3px" },
-  headerSub:    { fontSize:11, color:t.textMuted, marginTop:1 },
   childPill:    { display:"flex", alignItems:"center", gap:8, background:t.bgSurface, borderRadius:t.r.pill, padding:"6px 12px 6px 8px", border:`1px solid ${t.border}` },
   childAvatar:  { width:26, height:26, borderRadius:"50%", background:`linear-gradient(135deg,${t.green},${t.pink})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, fontWeight:600, color:t.navy },
   childName:    { fontSize:13, fontWeight:500, color:t.text },
