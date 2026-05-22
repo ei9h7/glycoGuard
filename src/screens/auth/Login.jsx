@@ -2,6 +2,7 @@ import { useState } from "react";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../../firebase";
 import { useNavigate, Link } from "react-router-dom";
+import { t } from "../../styles/tokens";
 
 export default function Login() {
   const [email,    setEmail]    = useState("");
@@ -43,13 +44,13 @@ export default function Login() {
 }
 
 const s = {
-  wrap:  { minHeight:"100vh", background:"#0f1f35", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:24, fontFamily:"'DM Sans',sans-serif" },
-  logo:  { fontFamily:"'DM Serif Display',serif", fontSize:32, color:"#f59e0b", marginBottom:6 },
-  sub:   { fontSize:13, color:"#7a8fa6", marginBottom:40 },
+  wrap:  { minHeight:"100vh", background:t.bg, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:24, fontFamily:t.fontSans, color:t.text },
+  logo:  { fontFamily:t.fontDisplay, fontSize:32, color:t.pink, marginBottom:6 },
+  sub:   { fontSize:13, color:t.textMuted, marginBottom:40 },
   form:  { width:"100%", maxWidth:340, display:"flex", flexDirection:"column", gap:12 },
-  input: { background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.08)", borderRadius:10, padding:"11px 14px", color:"#e8dcc8", fontSize:14, fontFamily:"'DM Sans',sans-serif", outline:"none" },
-  btn:   { background:"#f59e0b", color:"#0f1f35", border:"none", borderRadius:10, padding:"12px", fontSize:14, fontWeight:600, cursor:"pointer", fontFamily:"'DM Sans',sans-serif", marginTop:4 },
-  error: { fontSize:13, color:"#ef4444", textAlign:"center" },
-  footer:{ marginTop:24, fontSize:13, color:"#7a8fa6" },
-  link:  { color:"#f59e0b", textDecoration:"none" },
+  input: { background:t.bgCard, border:`1px solid ${t.border}`, borderRadius:t.r.md, padding:"11px 14px", color:t.text, fontSize:14, fontFamily:t.fontSans, outline:"none" },
+  btn:   { background:t.pink, color:t.navy, border:"none", borderRadius:t.r.md, padding:"12px", fontSize:14, fontWeight:600, cursor:"pointer", fontFamily:t.fontSans, marginTop:4 },
+  error: { fontSize:13, color:t.err, textAlign:"center" },
+  footer:{ marginTop:24, fontSize:13, color:t.textMuted },
+  link:  { color:t.pink, textDecoration:"none" },
 };

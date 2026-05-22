@@ -4,15 +4,16 @@ import { db, auth } from "../firebase";
 import { useChild } from "../hooks/useChild";
 import { usePatterns } from "../hooks/usePatterns";
 import { usePreferenceNotes } from "../hooks/usePreferenceNotes";
+import { t, shadows } from "../styles/tokens";
 
 const OPENROUTER_KEY = import.meta.env.VITE_OPENROUTER_API_KEY;
 const MODEL = "openrouter/auto";
 
 const GI_COLORS = {
-  "Low":        "#22c55e",
-  "Low-Medium": "#5fa882",
-  "Medium":     "#f59e0b",
-  "High":       "#ef4444",
+  "Low":        t.green,
+  "Low-Medium": t.greenDark,
+  "Medium":     t.warn,
+  "High":       t.err,
 };
 
 const FALLBACK_RECOMMENDATIONS = [
@@ -302,13 +303,13 @@ export default function Meals() {
         .recs-hscroll::-webkit-scrollbar { display: none; }
         .day-pills-scroll::-webkit-scrollbar { display: none; }
       `}</style>
-      <div style={{ fontFamily: "'DM Sans',sans-serif", color: "#e8dcc8", paddingBottom: 32 }}>
+      <div style={{ fontFamily: t.fontSans, color: t.text, paddingBottom: 32 }}>
 
         {/* Header */}
         <div style={s.header}>
           <div>
             <div style={s.logo}>Meal Suggestions</div>
-            <div style={{ fontSize: 11, color: "#7a8fa6", marginTop: 2 }}>
+            <div style={{ fontSize: 11, color: t.textMuted, marginTop: 2 }}>
               {child?.name ? `Personalised for ${child.name}` : "Loading…"}
             </div>
           </div>
@@ -327,10 +328,10 @@ export default function Meals() {
           /* Empty state — no patterns yet */
           <div style={s.emptyState}>
             <div style={{ fontSize: 44, marginBottom: 16 }}>🥗</div>
-            <div style={{ fontFamily: "'DM Serif Display',serif", fontSize: 18, color: "#f59e0b", marginBottom: 10 }}>
+            <div style={{ fontFamily: t.fontDisplay, fontSize: 18, color: t.pink, marginBottom: 10 }}>
               Building your insights
             </div>
-            <div style={{ fontSize: 13, color: "#7a8fa6", lineHeight: 1.65, maxWidth: 290, textAlign: "center" }}>
+            <div style={{ fontSize: 13, color: t.textMuted, lineHeight: 1.65, maxWidth: 290, textAlign: "center" }}>
               Log glucose readings, meals and symptoms for at least a week, then visit Patterns to generate insights — meal recommendations will personalise as your data grows.
             </div>
           </div>
@@ -340,8 +341,8 @@ export default function Meals() {
           /* Loading while generating */
           <div style={{ padding: "52px 20px", textAlign: "center" }}>
             <div style={{ fontSize: 40, marginBottom: 14 }}>🍽️</div>
-            <div style={{ fontSize: 14, color: "#7a8fa6" }}>Generating recommendations…</div>
-            <div style={{ fontSize: 12, color: "#5a6f85", marginTop: 6 }}>
+            <div style={{ fontSize: 14, color: t.textMuted }}>Generating recommendations…</div>
+            <div style={{ fontSize: 12, color: t.textMuted, marginTop: 6, opacity: 0.7 }}>
               Analysing glucose patterns and preferences
             </div>
           </div>
@@ -353,7 +354,7 @@ export default function Meals() {
             <div style={{ paddingTop: 16 }}>
               <div style={s.sectionHead}>
                 <span style={s.sectionTitle}>Suggested meals & snacks</span>
-                <span style={{ fontSize: 11, color: "#7a8fa6" }}>{recs.length} options</span>
+                <span style={{ fontSize: 11, color: t.textMuted }}>{recs.length} options</span>
               </div>
               <div className="recs-hscroll" style={s.hscroll}>
                 {recs.map((rec, i) => (
@@ -363,9 +364,9 @@ export default function Meals() {
                       <div style={s.recName}>{rec.name}</div>
                       <span style={{
                         ...s.giBadge,
-                        background:  (GI_COLORS[rec.gi] || "#7a8fa6") + "22",
-                        borderColor: (GI_COLORS[rec.gi] || "#7a8fa6") + "55",
-                        color:        GI_COLORS[rec.gi] || "#7a8fa6",
+                        background:  (GI_COLORS[rec.gi] || t.textMuted) + "22",
+                        borderColor: (GI_COLORS[rec.gi] || t.textMuted) + "55",
+                        color:        GI_COLORS[rec.gi] || t.textMuted,
                       }}>
                         {rec.gi}
                       </span>
@@ -390,7 +391,7 @@ export default function Meals() {
                 <span style={s.sectionTitle}>Weekly plan grid</span>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <button style={s.weekNav} onClick={() => setWeekOffset(w => w - 1)} aria-label="Previous week">‹</button>
-                  <span style={{ fontSize: 11, color: "#7a8fa6", minWidth: 68, textAlign: "center" }}>
+                  <span style={{ fontSize: 11, color: t.textMuted, minWidth: 68, textAlign: "center" }}>
                     {getWeekLabel(weekOffset)}
                   </span>
                   <button style={s.weekNav} onClick={() => setWeekOffset(w => w + 1)} aria-label="Next week">›</button>
@@ -414,7 +415,7 @@ export default function Meals() {
                       onClick={() => { setActiveDay(isActive ? null : i); setAddingMealDay(null); setNewMealInput(""); }}
                     >
                       <div style={{ fontSize: 11, fontWeight: 600 }}>{day}</div>
-                      <div style={{ height: 5, width: 5, borderRadius: "50%", background: hasMeals ? "#5fa882" : "transparent" }} />
+                      <div style={{ height: 5, width: 5, borderRadius: "50%", background: hasMeals ? t.green : "transparent" }} />
                     </button>
                   );
                 })}
@@ -423,20 +424,20 @@ export default function Meals() {
               {/* Expanded day panel */}
               {activeDay !== null && (
                 <div style={s.dayExpanded}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: "#e8dcc8", marginBottom: 10 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: t.text, marginBottom: 10 }}>
                     {DAY_NAMES[activeDay]}
                     {weekOffset === 0 && activeDay === getTodayDayIndex() && (
-                      <span style={{ fontSize: 10, color: "#f59e0b", marginLeft: 8, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.6px" }}>today</span>
+                      <span style={{ fontSize: 10, color: t.pink, marginLeft: 8, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.6px" }}>today</span>
                     )}
                   </div>
 
                   {(weekPlan[String(activeDay)] || []).length === 0 ? (
-                    <div style={{ fontSize: 12, color: "#5a6f85", marginBottom: 10 }}>No meals planned for this day.</div>
+                    <div style={{ fontSize: 12, color: t.textMuted, marginBottom: 10 }}>No meals planned for this day.</div>
                   ) : (
                     <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 10 }}>
                       {(weekPlan[String(activeDay)] || []).map((meal, mi) => (
                         <div key={mi} style={s.dayMealRow}>
-                          <span style={{ fontSize: 13, color: "#e8dcc8", flex: 1 }}>{meal.name}</span>
+                          <span style={{ fontSize: 13, color: t.text, flex: 1 }}>{meal.name}</span>
                           <button
                             style={s.removeBtnSm}
                             onClick={() => removeMealFromDay(activeDay, mi)}
@@ -508,17 +509,17 @@ export default function Meals() {
 
               {!hasWeekMeals ? (
                 <div style={s.planEmpty}>
-                  <div style={{ fontSize: 11, color: "#5a6f85", lineHeight: 1.55 }}>
+                  <div style={{ fontSize: 11, color: t.textMuted, lineHeight: 1.55 }}>
                     Add meals to your weekly plan to generate a grocery list.
                   </div>
                 </div>
               ) : groceryLoading ? (
-                <div style={{ padding: "20px 0", textAlign: "center", fontSize: 13, color: "#7a8fa6" }}>
+                <div style={{ padding: "20px 0", textAlign: "center", fontSize: 13, color: t.textMuted }}>
                   Building your list…
                 </div>
               ) : groceryItems.length === 0 ? (
                 <div style={s.planEmpty}>
-                  <div style={{ fontSize: 11, color: "#5a6f85", lineHeight: 1.55 }}>
+                  <div style={{ fontSize: 11, color: t.textMuted, lineHeight: 1.55 }}>
                     Tap Generate to create a shopping list from this week's meals.
                   </div>
                 </div>
@@ -561,7 +562,7 @@ export default function Meals() {
                     🛒 Send to Instacart
                   </button>
                   {instacartMsg && (
-                    <div style={{ fontSize: 12, color: "#7a8fa6", textAlign: "center", marginTop: 8, fontStyle: "italic" }}>
+                    <div style={{ fontSize: 12, color: t.textMuted, textAlign: "center", marginTop: 8, fontStyle: "italic" }}>
                       {instacartMsg}
                     </div>
                   )}
@@ -586,28 +587,28 @@ const s = {
     alignItems: "center",
     justifyContent: "space-between",
     padding: "20px 20px 12px",
-    borderBottom: "1px solid rgba(255,255,255,0.08)",
-    background: "rgba(15,31,53,0.85)",
+    borderBottom: `1px solid ${t.border}`,
+    background: "rgba(255,255,255,0.92)",
     backdropFilter: "blur(12px)",
     position: "sticky",
     top: 0,
     zIndex: 10,
   },
   logo: {
-    fontFamily: "'DM Serif Display',serif",
+    fontFamily: t.fontDisplay,
     fontSize: 22,
-    color: "#f59e0b",
+    color: t.pink,
   },
   refreshBtn: {
     width: 38,
     height: 38,
     borderRadius: "50%",
-    background: "rgba(30,54,84,0.7)",
-    border: "1px solid rgba(255,255,255,0.1)",
-    color: "#f59e0b",
+    background: t.bgSurface,
+    border: `1px solid ${t.border}`,
+    color: t.pink,
     fontSize: 22,
     cursor: "pointer",
-    fontFamily: "'DM Sans',sans-serif",
+    fontFamily: t.fontSans,
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
@@ -625,19 +626,19 @@ const s = {
     fontWeight: 600,
     textTransform: "uppercase",
     letterSpacing: "1.2px",
-    color: "#7a8fa6",
+    color: t.textMuted,
   },
   emptyState: {
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
     padding: "64px 24px 40px",
-    color: "#e8dcc8",
+    color: t.text,
   },
   planEmpty: {
-    background: "rgba(30,54,84,0.4)",
-    border: "1px solid rgba(255,255,255,0.06)",
-    borderRadius: 14,
+    background: t.bgSurface,
+    border: `1px solid ${t.border}`,
+    borderRadius: t.r.lg,
     padding: "16px 20px",
     textAlign: "center",
   },
@@ -653,17 +654,18 @@ const s = {
   recCard: {
     flexShrink: 0,
     width: 220,
-    background: "rgba(30,54,84,0.7)",
-    border: "1px solid rgba(255,255,255,0.08)",
-    borderRadius: 20,
+    background: t.bgCard,
+    border: `1px solid ${t.border}`,
+    borderRadius: t.r.xxl,
     padding: "18px 16px 16px",
     display: "flex",
     flexDirection: "column",
+    boxShadow: shadows.card,
   },
   recName: {
-    fontFamily: "'DM Serif Display',serif",
+    fontFamily: t.fontDisplay,
     fontSize: 16,
-    color: "#e8dcc8",
+    color: t.text,
     lineHeight: 1.25,
     marginBottom: 6,
   },
@@ -672,41 +674,41 @@ const s = {
     fontSize: 10,
     fontWeight: 700,
     padding: "2px 9px",
-    borderRadius: 20,
+    borderRadius: t.r.pill,
     border: "1px solid",
     letterSpacing: "0.4px",
   },
   carbsText: {
     fontSize: 12,
     fontWeight: 600,
-    color: "#7ec8a4",
+    color: t.greenDark,
     marginBottom: 8,
     marginTop: 6,
   },
   descText: {
     fontSize: 13,
-    color: "#e8dcc8",
+    color: t.textSecondary,
     lineHeight: 1.5,
     marginBottom: 8,
     flex: 1,
   },
   whyText: {
     fontSize: 11,
-    color: "#7a8fa6",
+    color: t.textMuted,
     lineHeight: 1.45,
     marginBottom: 14,
     fontStyle: "italic",
   },
   addBtn: {
     padding: "9px 0",
-    borderRadius: 10,
-    background: "#f59e0b",
-    color: "#0f1f35",
+    borderRadius: t.r.md,
+    background: t.pink,
+    color: t.navy,
     border: "none",
     fontSize: 13,
     fontWeight: 600,
     cursor: "pointer",
-    fontFamily: "'DM Sans',sans-serif",
+    fontFamily: t.fontSans,
     width: "100%",
     letterSpacing: "0.2px",
     transition: "opacity 0.15s",
@@ -717,12 +719,12 @@ const s = {
     height: 28,
     padding: 0,
     borderRadius: "50%",
-    background: "rgba(30,54,84,0.7)",
-    border: "1px solid rgba(255,255,255,0.08)",
-    color: "#e8dcc8",
+    background: t.bgSurface,
+    border: `1px solid ${t.border}`,
+    color: t.text,
     fontSize: 18,
     cursor: "pointer",
-    fontFamily: "'DM Sans',sans-serif",
+    fontFamily: t.fontSans,
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
@@ -740,40 +742,41 @@ const s = {
     flex: "0 0 auto",
     minWidth: 44,
     padding: "8px 6px 6px",
-    borderRadius: 12,
-    border: "1px solid rgba(255,255,255,0.08)",
-    background: "rgba(30,54,84,0.5)",
-    color: "#7a8fa6",
+    borderRadius: t.r.lg,
+    border: `1px solid ${t.border}`,
+    background: t.bgSurface,
+    color: t.textMuted,
     cursor: "pointer",
-    fontFamily: "'DM Sans',sans-serif",
+    fontFamily: t.fontSans,
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
     gap: 4,
   },
   dayPillToday: {
-    borderColor: "rgba(245,158,11,0.4)",
-    color: "#f59e0b",
-    background: "rgba(245,158,11,0.1)",
+    borderColor: `rgba(255,93,168,0.4)`,
+    color: t.pink,
+    background: `rgba(255,93,168,0.08)`,
   },
   dayPillActive: {
-    borderColor: "rgba(245,158,11,0.6)",
-    background: "rgba(245,158,11,0.18)",
-    color: "#f59e0b",
+    borderColor: `rgba(255,93,168,0.6)`,
+    background: `rgba(255,93,168,0.15)`,
+    color: t.pink,
   },
   dayExpanded: {
-    background: "rgba(30,54,84,0.6)",
-    border: "1px solid rgba(255,255,255,0.08)",
-    borderRadius: 16,
+    background: t.bgCard,
+    border: `1px solid ${t.border}`,
+    borderRadius: t.r.xl,
     padding: "14px 16px",
     marginTop: 4,
+    boxShadow: shadows.card,
   },
   dayMealRow: {
     display: "flex",
     alignItems: "center",
     gap: 8,
-    background: "rgba(15,31,53,0.4)",
-    borderRadius: 10,
+    background: t.bgSurface,
+    borderRadius: t.r.md,
     padding: "8px 10px",
   },
   removeBtnSm: {
@@ -781,12 +784,12 @@ const s = {
     height: 22,
     padding: 0,
     borderRadius: "50%",
-    background: "rgba(239,68,68,0.12)",
-    border: "1px solid rgba(239,68,68,0.2)",
-    color: "#ef4444",
+    background: t.errBg,
+    border: `1px solid ${t.errBorder}`,
+    color: t.err,
     fontSize: 14,
     cursor: "pointer",
-    fontFamily: "'DM Sans',sans-serif",
+    fontFamily: t.fontSans,
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
@@ -795,64 +798,64 @@ const s = {
   },
   addMealInput: {
     flex: 1,
-    background: "rgba(255,255,255,0.06)",
-    border: "1px solid rgba(255,255,255,0.12)",
-    borderRadius: 10,
+    background: t.bgSurface,
+    border: `1px solid ${t.border}`,
+    borderRadius: t.r.md,
     padding: "8px 12px",
-    color: "#e8dcc8",
+    color: t.text,
     fontSize: 13,
-    fontFamily: "'DM Sans',sans-serif",
+    fontFamily: t.fontSans,
     outline: "none",
   },
   saveMealBtn: {
     padding: "8px 14px",
-    borderRadius: 10,
-    background: "#f59e0b",
-    color: "#0f1f35",
+    borderRadius: t.r.md,
+    background: t.pink,
+    color: t.navy,
     border: "none",
     fontSize: 13,
     fontWeight: 600,
     cursor: "pointer",
-    fontFamily: "'DM Sans',sans-serif",
+    fontFamily: t.fontSans,
   },
   cancelBtn: {
     width: 30,
     height: 30,
     padding: 0,
     borderRadius: "50%",
-    background: "rgba(255,255,255,0.06)",
-    border: "1px solid rgba(255,255,255,0.1)",
-    color: "#7a8fa6",
+    background: t.bgSurface,
+    border: `1px solid ${t.border}`,
+    color: t.textMuted,
     fontSize: 13,
     cursor: "pointer",
-    fontFamily: "'DM Sans',sans-serif",
+    fontFamily: t.fontSans,
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
   },
   addMealDayBtn: {
     padding: "8px 14px",
-    borderRadius: 10,
-    background: "rgba(245,158,11,0.12)",
-    border: "1px solid rgba(245,158,11,0.25)",
-    color: "#f59e0b",
+    borderRadius: t.r.md,
+    background: `rgba(255,93,168,0.08)`,
+    border: `1px solid rgba(255,93,168,0.25)`,
+    color: t.pink,
     fontSize: 13,
     fontWeight: 600,
     cursor: "pointer",
-    fontFamily: "'DM Sans',sans-serif",
+    fontFamily: t.fontSans,
   },
 
   // ── Grocery list ──
   generateBtn: {
     padding: "6px 14px",
-    borderRadius: 10,
-    background: "#f59e0b",
-    color: "#0f1f35",
+    borderRadius: t.r.md,
+    background: t.pink,
+    color: t.navy,
     border: "none",
     fontSize: 12,
     fontWeight: 600,
     cursor: "pointer",
-    fontFamily: "'DM Sans',sans-serif",
+    fontFamily: t.fontSans,
     transition: "opacity 0.15s",
   },
   groceryCatLabel: {
@@ -860,7 +863,7 @@ const s = {
     fontWeight: 700,
     textTransform: "uppercase",
     letterSpacing: "0.8px",
-    color: "#7a8fa6",
+    color: t.textMuted,
     marginBottom: 6,
     paddingTop: 4,
   },
@@ -869,54 +872,54 @@ const s = {
     alignItems: "center",
     gap: 10,
     padding: "8px 0",
-    borderBottom: "1px solid rgba(255,255,255,0.05)",
+    borderBottom: `1px solid ${t.border}`,
   },
   checkBox: {
     width: 22,
     height: 22,
-    borderRadius: 6,
-    border: "1.5px solid rgba(255,255,255,0.2)",
+    borderRadius: t.r.sm,
+    border: `1.5px solid ${t.border}`,
     background: "transparent",
-    color: "#22c55e",
+    color: t.green,
     fontSize: 13,
     fontWeight: 700,
     cursor: "pointer",
-    fontFamily: "'DM Sans',sans-serif",
+    fontFamily: t.fontSans,
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     flexShrink: 0,
   },
   checkBoxChecked: {
-    borderColor: "#22c55e",
-    background: "rgba(34,197,94,0.12)",
+    borderColor: t.green,
+    background: t.okBg,
   },
   groceryItem: {
     flex: 1,
     fontSize: 14,
-    color: "#e8dcc8",
+    color: t.text,
   },
   groceryItemDone: {
     textDecoration: "line-through",
-    color: "#4a5f75",
+    color: t.textMuted,
   },
   groceryQty: {
     fontSize: 12,
-    color: "#7a8fa6",
+    color: t.textMuted,
     fontWeight: 600,
     flexShrink: 0,
   },
   instacartBtn: {
     width: "100%",
     padding: "12px 0",
-    borderRadius: 12,
-    background: "rgba(30,54,84,0.7)",
-    border: "1px solid rgba(255,255,255,0.1)",
-    color: "#e8dcc8",
+    borderRadius: t.r.lg,
+    background: t.bgSurface,
+    border: `1px solid ${t.border}`,
+    color: t.textSecondary,
     fontSize: 14,
     fontWeight: 600,
     cursor: "pointer",
-    fontFamily: "'DM Sans',sans-serif",
+    fontFamily: t.fontSans,
     marginTop: 16,
   },
 };
