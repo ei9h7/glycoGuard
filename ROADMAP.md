@@ -64,7 +64,8 @@ End of Phase 2 — Open Source Transition
 |Provider letter upload       |✅ Done     |Same pipeline as lab results via useDocuments.js                                                   |
 |Open symptom text entry      |✅ Done     |Free-text observation field on Home screen vectorised on save                                      |
 |AI assistant (live data)     |✅ Done     |AI.jsx — uses OpenRouter with auto-routing, full Firestore + Pinecone context assembly, conversation history, live on dev|
-|AI meal recommendations      |🔨 In progress|Partially covered by the AI assistant; dedicated recommendations screen still planned                |
+|AI meal recommendations      |✅ Done     |Dedicated Meals.jsx screen — AI-generated recommendations via OpenRouter, horizontal card scroll    |
+|Design system rebrand        |✅ Done     |Full token system in src/styles/tokens.js; all 12 components updated; pediatric palette: near-white background, hot pink brand (#FF5DA8), electric sky blue (#00BFFF), vivid mint (#00D68F); DESIGN_SYSTEM.md added with clinical colour rules|
 |AI pattern recognition       |✅ Done     |Pattern engine generates insights from 30 days of glucose, meal, and symptom data; stored in Firestore + Pinecone; auto-refreshes if stale >6 hours; manual refresh available; Reports screen grouped by category with confidence indicators|
 |Meal photo analysis          |📋 Planned  |Before/after photos, portion estimation via Claude vision API                                      |
 |Proactive alerts             |📋 Planned  |Predict reactive windows before they happen                                                        |
