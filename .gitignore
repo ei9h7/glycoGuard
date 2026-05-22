@@ -37,7 +37,11 @@ lerna-debug.log*
 # Firebase
 .firebase
 firebase-debug.log
-firebaserc
+.firebaserc
+
+# Claude Code internals — not project code
+.agents
+.claude
 
 # Testing
 coverage
