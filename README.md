@@ -62,6 +62,7 @@ This repository contains the **public prototype** — an interactive demonstrati
 |Meal recommendations screen      |✅ Built          |
 |Weekly meal plan grid            |✅ Built          |
 |Grocery list generation          |✅ Built          |
+|Design system rebrand            |✅ Done           |
 |Vercel deployment                |✅ Live — [glycoguard.app](https://glycoguard.app)|
 |AI meal photo analysis           |📋 Planned        |
 |Proactive alerts                 |📋 Planned        |
