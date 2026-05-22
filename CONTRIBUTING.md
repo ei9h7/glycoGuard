@@ -116,7 +116,7 @@ GlycoGuard uses OpenRouter as an AI gateway, routing requests to Claude for the 
 
 - **React 18 functional components only** — no class components
 - **Inline styles only** — no CSS files, no Tailwind, no CSS modules. All styles are JS objects at the bottom of each component file, named `s` or `styles`
-- **Design tokens** — use the colour palette defined in ARCHITECTURE.md. Do not introduce new colours without a clear reason
+- **Design tokens** — use the colour palette and component conventions defined in `src/styles/tokens.js`. See [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) for the full design system documentation including colour tokens, typography, spacing, and component conventions. Do not introduce new colours without a clear reason
 - **Glucose units** — all values are stored in Firestore as `mmol/L`. Conversion to `mg/dL` happens at the display layer only, via the `useUnits()` hook. Never store `mg/dL` values
 - **Firestore paths** — always follow the pattern `users/{userId}/children/{childId}/{collection}`. Never query Firestore for child data directly; use the `useChild()` hook
 - **New hooks** go in `src/hooks/`. New services (API clients, data processors) go in `src/services/`
