@@ -15,8 +15,8 @@ export const colors = {
   bgSurfaceAlt:    '#F5F8FA',   // cool light grey — neutral surfaces
 
   // ── Brand (30%) ────────────────────────────────────────────────────────────
-  brandPink:       '#FF5DA8',   // hot pink — primary brand, logo drop half, CTAs
-  brandBlue:       '#00BFFF',   // electric sky — CGM data, info states
+  brandPink:       '#FF5DA8',   // hot pink — primary brand, logo drop half, CTAs. NEVER use for glucose readings or clinical data (see DESIGN_SYSTEM.md Rule 2)
+  brandBlue:       '#00BFFF',   // electric sky — icons, chart dots, decorative UI only. Contrast ~2.7:1 on white — fails WCAG AA for text. NEVER use for clinical data (see Rule 2 & 3)
   brandGreen:      '#00D68F',   // vivid mint — success, in-range, logo mark
   brandGreenDark:  '#00916A',   // darker mint — text on light success surfaces
   anchor:          '#1A2E3B',   // deep navy — primary text, dark backgrounds, logo shield bg
@@ -124,9 +124,9 @@ export const t = {
   textSub:   colors.textSecondary,
   textMuted: colors.textMuted,
 
-  // Brand
-  pink:      colors.brandPink,
-  blue:      colors.brandBlue,
+  // Brand — UI only. See DESIGN_SYSTEM.md Clinical Colour Rules before using these.
+  pink:      colors.brandPink,  // UI/brand only — never clinical data
+  blue:      colors.brandBlue,  // icons/dots only — never text on white, never clinical data
   green:     colors.brandGreen,
   greenDark: colors.brandGreenDark,
   navy:      colors.anchor,
