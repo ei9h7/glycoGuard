@@ -5,7 +5,7 @@ export async function analyzeMealPhoto(base64Image, mimeType, child) {
     if (!apiKey || !base64Image || !mimeType || !child) return null;
 
     const body = {
-      model: "anthropic/claude-haiku-4-5",
+      model: "anthropic/claude-haiku-4.5",
       messages: [
         {
           role: "system",
@@ -22,7 +22,7 @@ export async function analyzeMealPhoto(base64Image, mimeType, child) {
           content: [
             {
               type: "text",
-              text: `Context: child.name="${child.name}", glucoseTargetMin=${child.glucoseTargetMin}, glucoseTargetMax=${child.glucoseTargetMax}, mealIntervalMinutes=${child.mealIntervalMinutes}`,
+              text: `Context: child.name=\"${child.name}\", glucoseTargetMin=${child.glucoseTargetMin}, glucoseTargetMax=${child.glucoseTargetMax}, mealIntervalMinutes=${child.mealIntervalMinutes}`,
             },
             {
               type: "image_url",
