@@ -252,6 +252,10 @@ const styles = {
     background: t.bgCard,
     border: `1px solid ${t.border}`,
     padding: 24,
+    maxHeight: "85vh",
+    overflowY: "auto",
+    display: "flex",
+    flexDirection: "column",
     boxShadow: shadows.modal,
   },
   header: {
