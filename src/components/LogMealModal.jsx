@@ -49,16 +49,21 @@ export default function LogMealModal({ open, onClose, onSave, saving }) {
         const base64 = ev.target.result.split(",")[1];
         const mimeType = file.type;
         const result = await analyzeMealPhoto(base64, mimeType, child);
-        setPhotoAnalysis(result);
+
         setAnalysisLoading(false);
-        if (result) {
-          if (!description) setDescription(result.description ?? "");
-          setCarbs(result.carbsEstimate ?? "");
-        } else {
-          setAnalysisError("Could not analyse photo — please fill in manually");
+
+        // New: result may be { error: string } instead of null
+        if (!result || result.error) {
+          setAnalysisError(result?.error || "Could not analyse photo — please fill in manually");
+          return;
         }
-      } catch {
-        setAnalysisError("Could not analyse photo — please fill in manually");
+
+        setPhotoAnalysis(result);
+        if (!description) setDescription(result.description ?? "");
+        setCarbs(result.carbsEstimate != null ? String(result.carbsEstimate) : "");
+
+      } catch (err) {
+        setAnalysisError(`Error: ${err.message}`);
         setAnalysisLoading(false);
       }
     };
@@ -124,14 +129,16 @@ export default function LogMealModal({ open, onClose, onSave, saving }) {
             </div>
           )}
           {analysisLoading && (
-            <div style={{ fontSize: 14, color: "#888", marginBottom: 6 }}>Analysing photo…</div>
+            <div style={{ fontSize: 14, color: t.textMuted, marginBottom: 6 }}>
+              Analysing photo…
+            </div>
           )}
           {photoAnalysis && (photoAnalysis.ingredients?.length > 0 || photoAnalysis.concerns?.length > 0) && (
             <div
               style={{
-                background: photoAnalysis.concerns?.length > 0 ? t.warnBg : "#f8f8f8",
-                color: photoAnalysis.concerns?.length > 0 ? t.warn : "#222",
-                border: `1px solid ${t.border}`,
+                background: photoAnalysis.concerns?.length > 0 ? t.warnBg : t.okBg,
+                color: photoAnalysis.concerns?.length > 0 ? t.warn : t.ok,
+                border: `1px solid ${photoAnalysis.concerns?.length > 0 ? t.warnBorder : t.okBorder}`,
                 borderRadius: 8,
                 padding: 10,
                 marginBottom: 8,
@@ -141,19 +148,32 @@ export default function LogMealModal({ open, onClose, onSave, saving }) {
                 gap: 4,
               }}
             >
-              <strong>Ingredients:</strong> {photoAnalysis.ingredients?.join(", ") || "–"}
+              <div><strong>Ingredients:</strong> {photoAnalysis.ingredients?.join(", ") || "–"}</div>
               {photoAnalysis.concerns?.length > 0 && (
                 <div>
-                  <strong>Concerns:</strong>{" "}
+                  <strong>⚠️ Concerns:</strong>{" "}
                   <span style={{ color: t.warn }}>
-                    {photoAnalysis.concerns?.join(", ")}
+                    {photoAnalysis.concerns.join(", ")}
                   </span>
+                </div>
+              )}
+              {photoAnalysis.confidence && (
+                <div style={{ fontSize: 12, color: t.textMuted }}>
+                  Confidence: {photoAnalysis.confidence}
                 </div>
               )}
             </div>
           )}
           {analysisError && (
-            <div style={{ color: "#d00", fontSize: 13, marginBottom: 5 }}>
+            <div style={{
+              color: t.err,
+              background: t.errBg,
+              border: `1px solid ${t.errBorder}`,
+              borderRadius: 8,
+              padding: "8px 12px",
+              fontSize: 13,
+              marginBottom: 8,
+            }}>
               {analysisError}
             </div>
           )}
@@ -274,6 +294,7 @@ const styles = {
     fontSize: 14,
     outline: "none",
     fontFamily: t.fontSans,
+    boxSizing: "border-box",
   },
   textarea: {
     width: "100%",
@@ -288,6 +309,7 @@ const styles = {
     resize: "vertical",
     minHeight: 90,
     fontFamily: t.fontSans,
+    boxSizing: "border-box",
   },
   actions: {
     display: "flex",
