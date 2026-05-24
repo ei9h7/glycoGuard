@@ -94,7 +94,6 @@ export default function LogMealModal({ open, onClose, onSave, saving }) {
           <input
             type="file"
             accept="image/*"
-            capture={/Mobi|Android/i.test(navigator.userAgent) ? "environment" : undefined}
             style={{ display: "none" }}
             ref={fileInputRef}
             onChange={handlePhotoChange}
