@@ -1,23 +1,69 @@
-import { useEffect, useState } from "react";
+import React, { useState, useRef } from "react";
 import { t, shadows } from "../styles/tokens";
+import analyzeMealPhoto from "../services/mealPhotoAnalysis";
+import { useChild } from "../hooks/useChild";
 
 export default function LogMealModal({ open, onClose, onSave, saving }) {
+  const { child } = useChild();
   const [description, setDescription] = useState("");
   const [carbs, setCarbs] = useState("");
   const [notes, setNotes] = useState("");
+  const [photoFile, setPhotoFile] = useState(null);
+  const [photoPreview, setPhotoPreview] = useState(null);
+  const [photoAnalysis, setPhotoAnalysis] = useState(null);
+  const [analysisLoading, setAnalysisLoading] = useState(false);
+  const [analysisError, setAnalysisError] = useState(null);
 
-  useEffect(() => {
+  const fileInputRef = useRef();
+
+  React.useEffect(() => {
     if (open) {
       setDescription("");
       setCarbs("");
       setNotes("");
+      setPhotoFile(null);
+      setPhotoPreview(null);
+      setPhotoAnalysis(null);
+      setAnalysisLoading(false);
+      setAnalysisError(null);
     }
   }, [open]);
 
   if (!open) return null;
 
   const parsedCarbs = carbs.trim() ? Number(carbs) : null;
-  const saveDisabled = saving || !description.trim();
+  const saveDisabled = saving || (!description.trim() && !photoAnalysis);
+
+  async function handlePhotoChange(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setPhotoFile(file);
+    setAnalysisError(null);
+    setPhotoPreview(null);
+    setPhotoAnalysis(null);
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      setPhotoPreview(ev.target.result);
+      setAnalysisLoading(true);
+      try {
+        const base64 = ev.target.result.split(",")[1];
+        const mimeType = file.type;
+        const result = await analyzeMealPhoto(base64, mimeType, child);
+        setPhotoAnalysis(result);
+        setAnalysisLoading(false);
+        if (result) {
+          if (!description) setDescription(result.description ?? "");
+          setCarbs(result.carbsEstimate ?? "");
+        } else {
+          setAnalysisError("Could not analyse photo — please fill in manually");
+        }
+      } catch {
+        setAnalysisError("Could not analyse photo — please fill in manually");
+        setAnalysisLoading(false);
+      }
+    };
+    reader.readAsDataURL(file);
+  }
 
   return (
     <div style={styles.overlay} onClick={onClose}>
@@ -27,6 +73,94 @@ export default function LogMealModal({ open, onClose, onSave, saving }) {
           <button style={styles.closeButton} onClick={onClose} type="button">✕</button>
         </div>
 
+        {/* Camera/Photo Button */}
+        <div style={{ marginBottom: 12 }}>
+          <button
+            type="button"
+            style={{
+              background: t.pink,
+              color: "#fff",
+              borderRadius: 8,
+              border: "none",
+              padding: "10px 18px",
+              fontSize: 20,
+              cursor: "pointer",
+              marginBottom: 6,
+            }}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            📷 Add Photo
+          </button>
+          <input
+            type="file"
+            accept="image/*"
+            capture={/Mobi|Android/i.test(navigator.userAgent) ? "environment" : undefined}
+            style={{ display: "none" }}
+            ref={fileInputRef}
+            onChange={handlePhotoChange}
+          />
+          {photoPreview && (
+            <div style={{ margin: "8px 0", display: "flex", alignItems: "center" }}>
+              <img
+                src={photoPreview}
+                alt="Meal preview"
+                style={{
+                  height: 80,
+                  border: `2px solid ${t.border}`,
+                  borderRadius: 8,
+                  marginRight: 12,
+                }}
+              />
+              <a
+                href="#"
+                style={{ fontSize: 13, color: "#555", textDecoration: "underline" }}
+                onClick={e => {
+                  e.preventDefault();
+                  setPhotoFile(null);
+                  setPhotoPreview(null);
+                  setPhotoAnalysis(null);
+                  setAnalysisError(null);
+                }}
+              >✕ Remove photo</a>
+            </div>
+          )}
+          {analysisLoading && (
+            <div style={{ fontSize: 14, color: "#888", marginBottom: 6 }}>Analysing photo…</div>
+          )}
+          {photoAnalysis && (photoAnalysis.ingredients?.length > 0 || photoAnalysis.concerns?.length > 0) && (
+            <div
+              style={{
+                background: photoAnalysis.concerns?.length > 0 ? t.warnBg : "#f8f8f8",
+                color: photoAnalysis.concerns?.length > 0 ? t.warn : "#222",
+                border: `1px solid ${t.border}`,
+                borderRadius: 8,
+                padding: 10,
+                marginBottom: 8,
+                fontSize: 14,
+                display: "flex",
+                flexDirection: "column",
+                gap: 4,
+              }}
+            >
+              <strong>Ingredients:</strong> {photoAnalysis.ingredients?.join(", ") || "–"}
+              {photoAnalysis.concerns?.length > 0 && (
+                <div>
+                  <strong>Concerns:</strong>{" "}
+                  <span style={{ color: t.warn }}>
+                    {photoAnalysis.concerns?.join(", ")}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+          {analysisError && (
+            <div style={{ color: "#d00", fontSize: 13, marginBottom: 5 }}>
+              {analysisError}
+            </div>
+          )}
+        </div>
+
+        {/* Description */}
         <label style={styles.label} htmlFor="meal-description">Meal description</label>
         <input
           id="meal-description"
@@ -36,6 +170,7 @@ export default function LogMealModal({ open, onClose, onSave, saving }) {
           onChange={(event) => setDescription(event.target.value)}
         />
 
+        {/* Estimated carbs */}
         <label style={styles.label} htmlFor="meal-carbs">Estimated carbs (optional)</label>
         <input
           id="meal-carbs"
@@ -48,6 +183,7 @@ export default function LogMealModal({ open, onClose, onSave, saving }) {
           onChange={(event) => setCarbs(event.target.value)}
         />
 
+        {/* Notes */}
         <label style={styles.label} htmlFor="meal-notes">Notes (optional)</label>
         <textarea
           id="meal-notes"
@@ -58,6 +194,7 @@ export default function LogMealModal({ open, onClose, onSave, saving }) {
           rows={3}
         />
 
+        {/* Actions */}
         <div style={styles.actions}>
           <button style={styles.secondaryButton} onClick={onClose} type="button">Cancel</button>
           <button
