@@ -46,10 +46,17 @@ export async function analyzeMealPhoto(base64Image, mimeType, child) {
       },
       body: JSON.stringify(body),
     });
+    
+    console.log('OpenRouter status:', res.status); // Debug log of status
 
-    if (!res.ok) return null;
+    if (!res.ok) {
+      const errText = await res.text();
+      console.log('OpenRouter error:', errText); // Debug log of error response
+      return null;
+    }
     const data = await res.json();
     const text = data?.choices?.[0]?.message?.content ?? "";
+    console.log('OpenRouter response:', text); // Debug log of raw content
     // Remove markdown/code fences if present before parsing
     const jsonText = text.replace(/^```json\n?|^```\n?|```$/g, "").trim();
     try {
