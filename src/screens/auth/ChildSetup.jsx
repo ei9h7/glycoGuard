@@ -4,6 +4,7 @@ import { db, auth } from "../../firebase";
 import { useNavigate } from "react-router-dom";
 import { t } from "../../styles/tokens";
 import GlycoGuardLogo from "../../components/GlycoGuardLogo";
+import { runCoParentMatch } from "../../services/coParentMatch";
 
 const CGM_OPTIONS = [
   "None / Not using CGM",
@@ -38,6 +39,7 @@ export default function ChildSetup() {
     glucoseMax:     "6.5",
     mealInterval:   "120",
     cgmDevice:      "None / Not using CGM",
+    coParentEmail:  "",
   });
 
   const set = (field) => (e) => setForm(f => ({ ...f, [field]: e.target.value }));
@@ -57,10 +59,12 @@ export default function ChildSetup() {
       glucoseTargetMax:    parseFloat(form.glucoseMax),
       mealIntervalMinutes: parseInt(form.mealInterval),
       cgmDevice:           form.cgmDevice,
+      coParentEmail:       form.coParentEmail.toLowerCase().trim(),
       createdAt:           serverTimestamp(),
       updatedAt:           serverTimestamp(),
     };
-    await addDoc(collection(db, "users", userId, "children"), childData);
+    const childRef = await addDoc(collection(db, "users", userId, "children"), childData);
+    runCoParentMatch(userId, childRef.id, childData).catch(console.error);
     // Force a full page reload to avoid race condition with onSnapshot
     window.location.href = "/";
   } catch (err) {
@@ -148,6 +152,13 @@ export default function ChildSetup() {
               <option key={c} value={c}>{c}</option>
             ))}
           </select>
+        </div>
+
+        <div style={s.group}>
+          <label style={s.label}>Co-parent email (optional)</label>
+          <input style={s.input} type="email" placeholder="co-parent@example.com"
+            value={form.coParentEmail} onChange={set("coParentEmail")} />
+          <div style={s.hint}>If your co-parent uses GlycoGuard with the same child's name and birthday, you'll be automatically connected.</div>
         </div>
 
         {error && <div style={s.error}>{error}</div>}

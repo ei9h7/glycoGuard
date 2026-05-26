@@ -8,6 +8,7 @@ import { useUnits } from "../hooks/useUnits";
 import { usePreferenceNotes } from "../hooks/usePreferenceNotes";
 import { useDocuments } from "../hooks/useDocuments";
 import { t, shadows } from "../styles/tokens";
+import { runCoParentMatch } from "../services/coParentMatch";
 
 const CGM_OPTIONS = [
   "None / Not using CGM",
@@ -57,6 +58,7 @@ export default function Settings() {
       glucoseMax:     String(child?.glucoseTargetMax  || "6.5"),
       mealInterval:   String(child?.mealIntervalMinutes || "120"),
       cgmDevice:      child?.cgmDevice      || "None / Not using CGM",
+      coParentEmail:  child?.coParentEmail  || "",
     });
     setEditing(true);
     setError("");
@@ -75,6 +77,7 @@ export default function Settings() {
     setSaving(true); setError("");
     try {
       const userId = auth.currentUser.uid;
+      const coParentEmail = form.coParentEmail.toLowerCase().trim();
       await updateDoc(doc(db, "users", userId, "children", childId), {
         name:                form.name.trim(),
         dob:                 form.dob,
@@ -83,8 +86,10 @@ export default function Settings() {
         glucoseTargetMax:    parseFloat(form.glucoseMax),
         mealIntervalMinutes: parseInt(form.mealInterval),
         cgmDevice:           form.cgmDevice,
+        coParentEmail,
         updatedAt:           serverTimestamp(),
       });
+      runCoParentMatch(userId, childId, { ...child, coParentEmail }).catch(console.error);
       setEditing(false);
       setForm(null);
       setSaved(true);
@@ -227,6 +232,15 @@ export default function Settings() {
                 <option key={c} value={c}>{c}</option>
               ))}
             </select>
+          </div>
+
+          <div style={s.group}>
+            <label style={s.label}>Co-parent email (optional)</label>
+            <input style={s.input} type="email" placeholder="co-parent@example.com"
+              value={form.coParentEmail} onChange={set("coParentEmail")} />
+            <div style={{ fontSize:11, color:t.textMuted, marginTop:4, lineHeight:1.5 }}>
+              If your co-parent uses GlycoGuard with the same child's name and birthday, you'll be automatically connected.
+            </div>
           </div>
 
           {error && <div style={s.error}>{error}</div>}

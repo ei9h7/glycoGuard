@@ -1,6 +1,8 @@
+import { useEffect, useRef } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "./hooks/useAuth";
 import { useChild } from "./hooks/useChild";
+import { runCoParentMatch } from "./services/coParentMatch";
 
 // Auth screens
 import Login      from "./screens/auth/Login";
@@ -12,6 +14,7 @@ import Home          from "./screens/Home";
 import Meals         from "./screens/Meals";
 import Reports       from "./screens/Reports";
 import AI            from "./screens/AI";
+import Sharing       from "./screens/Sharing";
 import Settings      from "./screens/Settings";
 import GlucoseHistory from "./screens/GlucoseHistory";
 
@@ -26,7 +29,16 @@ function ProtectedRoute({ children }) {
 
 function ChildGuard({ children }) {
   const { user, loading: authLoading } = useAuth();
-  const { child, loading: childLoading } = useChild();
+  const { child, childId, loading: childLoading } = useChild();
+  const matchRanRef = useRef(false);
+
+  useEffect(() => {
+    if (user && child && childId && !matchRanRef.current) {
+      matchRanRef.current = true;
+      runCoParentMatch(user.uid, childId, child).catch(console.error);
+    }
+  }, [user, child, childId]);
+
   if (authLoading || childLoading) return <div style={{ background:"#0f1f35", height:"100vh" }} />;
   return child ? children : <Navigate to="/setup" replace />;
 }
@@ -53,12 +65,13 @@ export default function App() {
           </ChildGuard>
         </ProtectedRoute>
       }>
-        <Route index           element={<Home />} />
-        <Route path="meals"    element={<Meals />} />
-        <Route path="reports"  element={<Reports />} />
-        <Route path="ai"       element={<AI />} />
-        <Route path="settings" element={<Settings />} />
-        <Route path="glucose"  element={<GlucoseHistory />} />
+        <Route index             element={<Home />} />
+        <Route path="meals"      element={<Meals />} />
+        <Route path="reports"    element={<Reports />} />
+        <Route path="ai"         element={<AI />} />
+        <Route path="sharing"    element={<Sharing />} />
+        <Route path="settings"   element={<Settings />} />
+        <Route path="glucose"    element={<GlucoseHistory />} />
       </Route>
 
       {/* Fallback */}

@@ -12,6 +12,7 @@ const NAV = [
   { to: "/meals",    icon: "🍽️", label: "Meals"     },
   { to: "/reports",  icon: "🧩", label: "Patterns"  },
   { to: "/ai",       icon: "✨", label: "Assistant" },
+  { to: "/sharing",  icon: "🤝", label: "Hub"      },
   { to: "/settings", icon: "⚙️", label: "Settings"  },
 ];
 
@@ -22,6 +23,7 @@ const ROUTE_LABELS = {
   "/meals":    "Meals",
   "/reports":  "Patterns",
   "/ai":       "AI Assistant",
+  "/sharing":  "Sharing",
   "/settings": "Settings",
   "/glucose":  "Glucose History",
 };
