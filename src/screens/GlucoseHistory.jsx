@@ -1,8 +1,7 @@
-import { useState, useEffect } from "react";
-import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
-import { db, auth } from "../firebase";
+import { useState } from "react";
 import { useChild } from "../hooks/useChild";
 import { useUnits } from "../hooks/useUnits";
+import { useSharedGlucose } from "../hooks/useSharedData";
 import { t, shadows } from "../styles/tokens";
 
 const PERIODS = [
@@ -160,29 +159,24 @@ function StatsStrip({ readings, min, max, fmt, displayUnit }) {
   );
 }
 
+function CoParentBadge() {
+  return (
+    <span style={{ display:"inline-flex", alignItems:"center", gap:3 }}>
+      <span style={{ width:5, height:5, borderRadius:"50%", background:"#C4C4C4", display:"inline-block", flexShrink:0 }}/>
+      <span style={{ fontSize:10, color:t.textMuted }}>Co-parent</span>
+    </span>
+  );
+}
+
 // ── Main screen ───────────────────────────────────────────────────────────────
 export default function GlucoseHistory() {
-  const { child, childId } = useChild();
+  const { child } = useChild();
   const { fmt, displayUnit } = useUnits();
-  const [allReadings, setAllReadings] = useState([]);
-  const [period,      setPeriod]      = useState(1);
-  const [loading,     setLoading]     = useState(true);
+  const { readings: allReadings, loading } = useSharedGlucose();
+  const [period, setPeriod] = useState(1);
 
   const glucoseMin = child?.glucoseTargetMin || 4.0;
   const glucoseMax = child?.glucoseTargetMax || 6.5;
-
-  useEffect(() => {
-    if (!child || !childId) return;
-    const userId = auth.currentUser.uid;
-    const q = query(
-      collection(db, "users", userId, "children", childId, "glucoseReadings"),
-      orderBy("timestamp", "desc")
-    );
-    return onSnapshot(q, snap => {
-      setAllReadings(snap.docs.map(d => ({ id:d.id, ...d.data() })));
-      setLoading(false);
-    });
-  }, [child, childId]);
 
   const cutoff  = Date.now() - period * 24 * 60 * 60 * 1000;
   const filtered = allReadings.filter(r => {
@@ -295,10 +289,13 @@ export default function GlucoseHistory() {
                           <span style={{ fontSize:11, color:t.textMuted }}>{displayUnit}</span>
                           <span style={{ fontSize:11, color, marginLeft:2 }}>· {status}</span>
                         </div>
-                        <div style={{ fontSize:11, color:t.textMuted, marginTop:2 }}>
-                          {fmtTime(r.timestamp)}
-                          {r.source && ` · ${r.source}`}
-                          {r.notes  && ` · ${r.notes}`}
+                        <div style={{ fontSize:11, color:t.textMuted, marginTop:2, display:"flex", alignItems:"center", flexWrap:"wrap", gap:4 }}>
+                          <span>
+                            {fmtTime(r.timestamp)}
+                            {r.source && ` · ${r.source}`}
+                            {r.notes  && ` · ${r.notes}`}
+                          </span>
+                          {r._from === "coparent" && <CoParentBadge />}
                         </div>
                       </div>
                     </div>

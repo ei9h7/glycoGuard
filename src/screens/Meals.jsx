@@ -4,6 +4,7 @@ import { db, auth } from "../firebase";
 import { useChild } from "../hooks/useChild";
 import { usePatterns } from "../hooks/usePatterns";
 import { usePreferenceNotes } from "../hooks/usePreferenceNotes";
+import { useSharedMeals } from "../hooks/useSharedData";
 import { t, shadows } from "../styles/tokens";
 
 const OPENROUTER_KEY = import.meta.env.VITE_OPENROUTER_API_KEY;
@@ -77,6 +78,44 @@ function getWeekLabel(weekOffset) {
   sun.setDate(mon.getDate() + 6);
   const fmt = { month: "short", day: "numeric" };
   return `${mon.toLocaleDateString([], fmt)} – ${sun.toLocaleDateString([], fmt)}`;
+}
+
+// ── Meal history helpers ──────────────────────────────────────────────────────
+
+function fmtTime(ts) {
+  if (!ts) return "";
+  const d = ts.toDate ? ts.toDate() : new Date(ts);
+  return d.toLocaleTimeString([], { hour:"2-digit", minute:"2-digit" });
+}
+
+function fmtDate(ts) {
+  if (!ts) return "";
+  const d = ts.toDate ? ts.toDate() : new Date(ts);
+  const today     = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  if (d.toDateString() === today.toDateString())     return "Today";
+  if (d.toDateString() === yesterday.toDateString()) return "Yesterday";
+  return d.toLocaleDateString([], { weekday:"short", month:"short", day:"numeric" });
+}
+
+function groupByDate(meals) {
+  const groups = {};
+  for (const meal of meals) {
+    const label = fmtDate(meal.timestamp);
+    if (!groups[label]) groups[label] = [];
+    groups[label].push(meal);
+  }
+  return Object.entries(groups);
+}
+
+function CoParentBadge() {
+  return (
+    <span style={{ display:"inline-flex", alignItems:"center", gap:3 }}>
+      <span style={{ width:5, height:5, borderRadius:"50%", background:"#C4C4C4", display:"inline-block", flexShrink:0 }}/>
+      <span style={{ fontSize:10, color:t.textMuted }}>Co-parent</span>
+    </span>
+  );
 }
 
 // ── AI helpers ────────────────────────────────────────────────────────────────
@@ -181,6 +220,7 @@ export default function Meals() {
   const { child, childId }                     = useChild();
   const { patterns, loading: patternsLoading } = usePatterns();
   const { notes }                              = usePreferenceNotes();
+  const { meals: recentMeals }                 = useSharedMeals();
 
   // Recommendations
   const [recs,        setRecs]        = useState([]);
@@ -573,6 +613,43 @@ export default function Meals() {
           </>
         )}
 
+        {/* ── Recent meal log ── */}
+        <div style={{ ...s.sectionHead, paddingTop: 20 }}>
+          <span style={s.sectionTitle}>Recent meal log</span>
+          <span style={{ fontSize:11, color:t.textMuted }}>{recentMeals.length} entries</span>
+        </div>
+
+        {recentMeals.length === 0 ? (
+          <div style={{ ...s.planEmpty, margin:"0 16px" }}>
+            <div style={{ fontSize:11, color:t.textMuted }}>No meals logged yet.</div>
+          </div>
+        ) : (
+          <div style={{ padding:"0 16px 8px" }}>
+            {groupByDate(recentMeals.slice(0, 20)).map(([date, items]) => (
+              <div key={date} style={{ marginBottom:16 }}>
+                <div style={s.mealDateLabel}>{date}</div>
+                {items.map(meal => (
+                  <div key={meal.id} style={s.mealLogRow}>
+                    <div style={{ flex:1 }}>
+                      <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:2 }}>
+                        <span style={{ fontSize:13, color:t.text }}>
+                          {meal.descriptionText || "Meal logged"}
+                        </span>
+                        {meal._from === "coparent" && <CoParentBadge />}
+                      </div>
+                      <div style={{ fontSize:11, color:t.textMuted }}>
+                        {fmtTime(meal.timestamp)}
+                        {meal.carbsEstimate ? ` · ${meal.carbsEstimate}g carbs` : ""}
+                        {meal.notes ? ` · ${meal.notes}` : ""}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        )}
+
       </div>
     </>
   );
@@ -921,5 +998,21 @@ const s = {
     cursor: "pointer",
     fontFamily: t.fontSans,
     marginTop: 16,
+  },
+  mealDateLabel: {
+    fontSize: 12,
+    fontWeight: 600,
+    color: t.textMuted,
+    textTransform: "uppercase",
+    letterSpacing: "0.8px",
+    marginBottom: 8,
+    paddingBottom: 6,
+    borderBottom: `1px solid ${t.border}`,
+  },
+  mealLogRow: {
+    display: "flex",
+    alignItems: "flex-start",
+    padding: "10px 0",
+    borderBottom: `1px solid ${t.border}`,
   },
 };

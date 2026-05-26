@@ -5,6 +5,7 @@ import { db, auth } from "../firebase";
 import { upsertVector } from "../services/vectorStore";
 import { useChild } from "../hooks/useChild";
 import { useUnits } from "../hooks/useUnits";
+import { useSharedMeals, useSharedSymptoms } from "../hooks/useSharedData";
 import { t, shadows } from "../styles/tokens";
 import GlycoGuardLogo from "../components/GlycoGuardLogo";
 import LogMealModal from "../components/LogMealModal";
@@ -57,6 +58,15 @@ function glucoseColor(value, min, max) {
   return t.warn;
 }
 
+function CoParentBadge() {
+  return (
+    <span style={{ display:"inline-flex", alignItems:"center", gap:3 }}>
+      <span style={{ width:5, height:5, borderRadius:"50%", background:"#C4C4C4", display:"inline-block", flexShrink:0 }}/>
+      <span style={{ fontSize:10, color:t.textMuted }}>Co-parent</span>
+    </span>
+  );
+}
+
 function GlucoseRing({ value, min = 4.0, max = 6.5, fmt, displayUnit }) {
   const R = 42, cx = 50, cy = 50, circ = 2 * Math.PI * R;
   const pct   = Math.max(0, Math.min(1, (value - 2.5) / 5.5));
@@ -85,9 +95,12 @@ export default function Home() {
   const [showMealModal, setShowMealModal] = useState(false);
   const [showGlucoseModal, setShowGlucoseModal] = useState(false);
 
-  const [lastMeal,    setLastMeal]    = useState(null);
-  const [lastGlucose, setLastGlucose] = useState(null);
-  const [timeline,    setTimeline]    = useState([]);
+  const [lastMeal,     setLastMeal]     = useState(null);
+  const [lastGlucose,  setLastGlucose]  = useState(null);
+  const [glucoseItems, setGlucoseItems] = useState([]);
+
+  const { meals: sharedMeals }       = useSharedMeals();
+  const { symptoms: sharedSymptoms } = useSharedSymptoms();
 
   const [activeSymptoms, setActiveSymptoms] = useState([]);
   const [obsText,        setObsText]        = useState("");
@@ -126,38 +139,28 @@ export default function Home() {
     });
   }, [child, childId]);
 
+  // Glucose timeline entries — current user only (live status uses its own listener above)
   useEffect(() => {
     if (!child || !childId) return;
     const userId = auth.currentUser.uid;
-
-    const merge = (prev, newItems, type) => {
-      const others = prev.filter(i => i.type !== type);
-      return [...newItems, ...others].sort((a, b) => {
-        const at = a.timestamp?.toDate?.() || new Date(0);
-        const bt = b.timestamp?.toDate?.() || new Date(0);
-        return bt - at;
-      });
-    };
-
-    const mealQ = query(collection(db, "users", userId, "children", childId, "mealLogs"), orderBy("timestamp", "desc"), limit(10));
-    const glucQ  = query(collection(db, "users", userId, "children", childId, "glucoseReadings"), orderBy("timestamp", "desc"), limit(10));
-    const sympQ  = query(collection(db, "users", userId, "children", childId, "symptomEvents"), orderBy("timestamp", "desc"), limit(10));
-
-    const u1 = onSnapshot(mealQ, snap => {
-      const items = snap.docs.map(d => ({ id:d.id, type:"meal",    ...d.data() }));
-      setTimeline(prev => merge(prev, items, "meal"));
+    const q = query(
+      collection(db, "users", userId, "children", childId, "glucoseReadings"),
+      orderBy("timestamp", "desc"), limit(10)
+    );
+    return onSnapshot(q, snap => {
+      setGlucoseItems(snap.docs.map(d => ({ id:d.id, type:"glucose", _from:"mine", ...d.data() })));
     });
-    const u2 = onSnapshot(glucQ, snap => {
-      const items = snap.docs.map(d => ({ id:d.id, type:"glucose", ...d.data() }));
-      setTimeline(prev => merge(prev, items, "glucose"));
-    });
-    const u3 = onSnapshot(sympQ, snap => {
-      const items = snap.docs.map(d => ({ id:d.id, type:"symptom", ...d.data() }));
-      setTimeline(prev => merge(prev, items, "symptom"));
-    });
-
-    return () => { u1(); u2(); u3(); };
   }, [child, childId]);
+
+  const timeline = [
+    ...sharedMeals.slice(0, 10).map(m => ({ ...m, type:"meal" })),
+    ...sharedSymptoms.slice(0, 10).map(s => ({ ...s, type:"symptom" })),
+    ...glucoseItems,
+  ].sort((a, b) => {
+    const at = a.timestamp?.toDate?.()?.getTime() ?? 0;
+    const bt = b.timestamp?.toDate?.()?.getTime() ?? 0;
+    return bt - at;
+  }).slice(0, 30);
 
   const saveSymptoms = async () => {
     if (activeSymptoms.length === 0 && !obsText.trim()) return;
@@ -415,10 +418,13 @@ export default function Home() {
                 {i < timeline.length - 1 && <div style={{ flex:1, width:1, background:t.border, minHeight:24 }}/>}
               </div>
               <div style={{ flex:1, background:t.bgCard, border:`1px solid ${t.border}`, borderRadius:t.r.lg, padding:"12px 14px", boxShadow:shadows.card }}>
-                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"baseline", marginBottom:4 }}>
-                  <span style={{ fontSize:13, fontWeight:600, color:t.text }}>
-                    {item.type==="meal" ? "Meal logged" : item.type==="glucose" ? "Glucose reading" : "Symptoms noted"}
-                  </span>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:4 }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                    <span style={{ fontSize:13, fontWeight:600, color:t.text }}>
+                      {item.type==="meal" ? "Meal logged" : item.type==="glucose" ? "Glucose reading" : "Symptoms noted"}
+                    </span>
+                    {item._from === "coparent" && <CoParentBadge />}
+                  </div>
                   <span style={{ fontSize:11, color:t.textMuted }}>{fmtTime(item.timestamp)}</span>
                 </div>
                 <div style={{ fontSize:12, color:t.textMuted, lineHeight:1.5 }}>
