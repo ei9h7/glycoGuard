@@ -21,7 +21,7 @@ GlycoGuard was built out of that gap, by a parent living it.
 - **Symptom logging** — one-tap symptom capture with AI-predicted likely symptoms based on timing and history
 - **Meal logging** — photo-based AI analysis (before and after) to estimate what was consumed, with manual correction
 - **Meal planning** — AI-recommended meals based on the child’s individual glucose patterns, with weekly planning, dietary preferences, and grocery list generation
-- **Co-parent sharing** — granular data sharing controls that work independently of whether both parties are communicating
+- **Co-parent sharing** — automatic account linking via child name, birthday, and reciprocal email (no invitations or communication required); mutual consent toggles per data category; co-parent data merges into your timeline and history with attribution badges
 - **Medical reports** — exportable summaries formatted for endocrinologists, GPs, and hospital visits
 - **AI assistant** — conversational interface with full access to the child’s history for pattern analysis and real-time recommendations
 
@@ -67,7 +67,7 @@ This repository contains the **public prototype** — an interactive demonstrati
 |AI meal photo analysis           |📋 Planned        |
 |Proactive alerts                 |📋 Planned        |
 |CGM integration (FreeStyle Libre)|📋 Planned        |
-|Co-parent sync                   |📋 Planned        |
+|Co-parent sharing (Sharing Hub)  |✅ Built          |
 |Pattern report export            |📋 Planned        |
 |Medical report export            |📋 Planned        |
 |Grocery API (Instacart)          |📋 Planned        |

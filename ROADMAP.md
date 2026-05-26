@@ -80,8 +80,8 @@ End of Phase 2 — Open Source Transition
 |------------------------------|------------|---------------------------------------------|
 |FreeStyle Libre 3+ integration|📋 Planned   |LibreLink API or NFC read                    |
 |Dexcom integration            |📋 Planned   |Dexcom developer API                         |
-|Co-parent account linking     |📋 Planned   |Granular per-category sharing controls       |
-|Co-parent independent logging |📋 Planned   |Both parties log independently, data merges  |
+|Co-parent account linking     |✅ Done      |Auto-matched on child name + DOB + reciprocal email — no invites or manual linking required; coParentMatch.js uses Firestore collectionGroup query; status: pending → connected|
+|Co-parent independent logging |✅ Done      |Mutual consent model per data category (glucose, meals, symptoms, documents, patterns, AI history); real-time data merge via useSharedData.js; co-parent records shown with attribution badge; Sharing Hub screen at /sharing|
 |Pattern report export         |📋 Planned   |"Create report for medical team" formatted PDF export of pattern summaries, plain language interpretation of glucose trends and meal correlations for endocrinologists|
 |Medical report export         |📋 Planned   |Selectable data, PDF, formatted for providers|
 |Selectable report recipients  |📋 Planned   |User feedback item                           |
