@@ -3,6 +3,7 @@ import { doc, setDoc, onSnapshot, arrayUnion } from "firebase/firestore";
 import { db, auth } from "../firebase";
 import { useChild } from "../hooks/useChild";
 import { usePatterns } from "../hooks/usePatterns";
+import { useAI } from "../hooks/useAI";
 import { usePreferenceNotes } from "../hooks/usePreferenceNotes";
 import { useSharedMeals } from "../hooks/useSharedData";
 import { t, shadows } from "../styles/tokens";
@@ -219,6 +220,7 @@ async function generateGroceryList(mealNames) {
 export default function Meals() {
   const { child, childId }                     = useChild();
   const { patterns, loading: patternsLoading } = usePatterns();
+  const { aiEnabled }                          = useAI();
   const { notes }                              = usePreferenceNotes();
   const { meals: recentMeals }                 = useSharedMeals();
 
@@ -353,17 +355,32 @@ export default function Meals() {
               {child?.name ? `Personalised for ${child.name}` : "Loading…"}
             </div>
           </div>
-          <button
-            style={{ ...s.refreshBtn, opacity: recsLoading || hasNoPatterns ? 0.4 : 1 }}
-            onClick={handleRefresh}
-            disabled={recsLoading || hasNoPatterns}
-            aria-label="Refresh recommendations"
-          >
-            ↻
-          </button>
+          {aiEnabled !== false && (
+            <button
+              style={{ ...s.refreshBtn, opacity: recsLoading || hasNoPatterns ? 0.4 : 1 }}
+              onClick={handleRefresh}
+              disabled={recsLoading || hasNoPatterns}
+              aria-label="Refresh recommendations"
+            >
+              ↻
+            </button>
+          )}
         </div>
 
-        {hasNoPatterns ? (
+        {/* ── Recommendations section ── */}
+        {aiEnabled === false ? (
+
+          /* AI disabled — subtle prompt card */
+          <div style={{ padding: "16px 16px 0" }}>
+            <div style={s.aiDisabledCard}>
+              <span style={{ fontSize: 20 }}>🥗</span>
+              <div style={{ fontSize: 13, color: t.textMuted, lineHeight: 1.6 }}>
+                Enable AI in Settings to get personalised meal recommendations based on glucose patterns.
+              </div>
+            </div>
+          </div>
+
+        ) : hasNoPatterns ? (
 
           /* Empty state — no patterns yet */
           <div style={s.emptyState}>
@@ -388,230 +405,237 @@ export default function Meals() {
           </div>
 
         ) : (
-          <>
 
-            {/* ── Recommendation cards ── */}
-            <div style={{ paddingTop: 16 }}>
-              <div style={s.sectionHead}>
-                <span style={s.sectionTitle}>Suggested meals & snacks</span>
-                <span style={{ fontSize: 11, color: t.textMuted }}>{recs.length} options</span>
-              </div>
-              <div className="recs-hscroll" style={s.hscroll}>
-                {recs.map((rec, i) => (
-                  <div key={i} style={s.recCard}>
-                    <div style={{ fontSize: 44, textAlign: "center", marginBottom: 10 }}>{rec.emoji}</div>
-                    <div style={{ marginBottom: 4 }}>
-                      <div style={s.recName}>{rec.name}</div>
-                      <span style={{
-                        ...s.giBadge,
-                        background:  (GI_COLORS[rec.gi] || t.textMuted) + "22",
-                        borderColor: (GI_COLORS[rec.gi] || t.textMuted) + "55",
-                        color:        GI_COLORS[rec.gi] || t.textMuted,
-                      }}>
-                        {rec.gi}
-                      </span>
-                    </div>
-                    <div style={s.carbsText}>{rec.carbsEstimate} carbs</div>
-                    <div style={s.descText}>{rec.description}</div>
-                    <div style={s.whyText}>{rec.whyRecommended}</div>
-                    <button
-                      style={s.addBtn}
-                      onClick={() => addToMealPlan(rec)}
-                    >
-                      + Add to meal plan
-                    </button>
-                  </div>
-                ))}
-              </div>
+          /* ── Recommendation cards ── */
+          <div style={{ paddingTop: 16 }}>
+            <div style={s.sectionHead}>
+              <span style={s.sectionTitle}>Suggested meals & snacks</span>
+              <span style={{ fontSize: 11, color: t.textMuted }}>{recs.length} options</span>
             </div>
-
-            {/* ── Weekly meal plan grid ── */}
-            <div style={{ padding: "20px 16px 8px" }}>
-              <div style={s.sectionHead}>
-                <span style={s.sectionTitle}>Weekly plan grid</span>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <button style={s.weekNav} onClick={() => setWeekOffset(w => w - 1)} aria-label="Previous week">‹</button>
-                  <span style={{ fontSize: 11, color: t.textMuted, minWidth: 68, textAlign: "center" }}>
-                    {getWeekLabel(weekOffset)}
-                  </span>
-                  <button style={s.weekNav} onClick={() => setWeekOffset(w => w + 1)} aria-label="Next week">›</button>
-                </div>
-              </div>
-
-              {/* Day pill row */}
-              <div className="day-pills-scroll" style={s.dayPills}>
-                {DAY_NAMES.map((day, i) => {
-                  const isToday   = weekOffset === 0 && i === getTodayDayIndex();
-                  const isActive  = activeDay === i;
-                  const hasMeals  = (weekPlan[String(i)] || []).length > 0;
-                  return (
-                    <button
-                      key={i}
-                      style={{
-                        ...s.dayPill,
-                        ...(isToday  ? s.dayPillToday  : {}),
-                        ...(isActive ? s.dayPillActive : {}),
-                      }}
-                      onClick={() => { setActiveDay(isActive ? null : i); setAddingMealDay(null); setNewMealInput(""); }}
-                    >
-                      <div style={{ fontSize: 11, fontWeight: 600 }}>{day}</div>
-                      <div style={{ height: 5, width: 5, borderRadius: "50%", background: hasMeals ? t.green : "transparent" }} />
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Expanded day panel */}
-              {activeDay !== null && (
-                <div style={s.dayExpanded}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: t.text, marginBottom: 10 }}>
-                    {DAY_NAMES[activeDay]}
-                    {weekOffset === 0 && activeDay === getTodayDayIndex() && (
-                      <span style={{ fontSize: 10, color: t.pink, marginLeft: 8, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.6px" }}>today</span>
-                    )}
+            <div className="recs-hscroll" style={s.hscroll}>
+              {recs.map((rec, i) => (
+                <div key={i} style={s.recCard}>
+                  <div style={{ fontSize: 44, textAlign: "center", marginBottom: 10 }}>{rec.emoji}</div>
+                  <div style={{ marginBottom: 4 }}>
+                    <div style={s.recName}>{rec.name}</div>
+                    <span style={{
+                      ...s.giBadge,
+                      background:  (GI_COLORS[rec.gi] || t.textMuted) + "22",
+                      borderColor: (GI_COLORS[rec.gi] || t.textMuted) + "55",
+                      color:        GI_COLORS[rec.gi] || t.textMuted,
+                    }}>
+                      {rec.gi}
+                    </span>
                   </div>
+                  <div style={s.carbsText}>{rec.carbsEstimate} carbs</div>
+                  <div style={s.descText}>{rec.description}</div>
+                  <div style={s.whyText}>{rec.whyRecommended}</div>
+                  <button
+                    style={s.addBtn}
+                    onClick={() => addToMealPlan(rec)}
+                  >
+                    + Add to meal plan
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
 
-                  {(weekPlan[String(activeDay)] || []).length === 0 ? (
-                    <div style={{ fontSize: 12, color: t.textMuted, marginBottom: 10 }}>No meals planned for this day.</div>
-                  ) : (
-                    <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 10 }}>
-                      {(weekPlan[String(activeDay)] || []).map((meal, mi) => (
-                        <div key={mi} style={s.dayMealRow}>
-                          <span style={{ fontSize: 13, color: t.text, flex: 1 }}>{meal.name}</span>
-                          <button
-                            style={s.removeBtnSm}
-                            onClick={() => removeMealFromDay(activeDay, mi)}
-                            aria-label="Remove meal"
-                          >×</button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+        )}
 
-                  {addingMealDay === activeDay ? (
-                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                      <input
-                        style={s.addMealInput}
-                        placeholder="e.g. Oat porridge"
-                        value={newMealInput}
-                        onChange={e => setNewMealInput(e.target.value)}
-                        onKeyDown={e => {
-                          if (e.key === "Enter" && newMealInput.trim()) {
-                            addMealToDay(activeDay, newMealInput);
-                            setNewMealInput("");
-                            setAddingMealDay(null);
-                          }
-                          if (e.key === "Escape") { setAddingMealDay(null); setNewMealInput(""); }
-                        }}
-                        autoFocus
-                      />
+        {/* ── Weekly meal plan grid — always visible ── */}
+        <div style={{ padding: "20px 16px 8px" }}>
+          <div style={s.sectionHead}>
+            <span style={s.sectionTitle}>Weekly plan grid</span>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <button style={s.weekNav} onClick={() => setWeekOffset(w => w - 1)} aria-label="Previous week">‹</button>
+              <span style={{ fontSize: 11, color: t.textMuted, minWidth: 68, textAlign: "center" }}>
+                {getWeekLabel(weekOffset)}
+              </span>
+              <button style={s.weekNav} onClick={() => setWeekOffset(w => w + 1)} aria-label="Next week">›</button>
+            </div>
+          </div>
+
+          {/* Day pill row */}
+          <div className="day-pills-scroll" style={s.dayPills}>
+            {DAY_NAMES.map((day, i) => {
+              const isToday   = weekOffset === 0 && i === getTodayDayIndex();
+              const isActive  = activeDay === i;
+              const hasMeals  = (weekPlan[String(i)] || []).length > 0;
+              return (
+                <button
+                  key={i}
+                  style={{
+                    ...s.dayPill,
+                    ...(isToday  ? s.dayPillToday  : {}),
+                    ...(isActive ? s.dayPillActive : {}),
+                  }}
+                  onClick={() => { setActiveDay(isActive ? null : i); setAddingMealDay(null); setNewMealInput(""); }}
+                >
+                  <div style={{ fontSize: 11, fontWeight: 600 }}>{day}</div>
+                  <div style={{ height: 5, width: 5, borderRadius: "50%", background: hasMeals ? t.green : "transparent" }} />
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Expanded day panel */}
+          {activeDay !== null && (
+            <div style={s.dayExpanded}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: t.text, marginBottom: 10 }}>
+                {DAY_NAMES[activeDay]}
+                {weekOffset === 0 && activeDay === getTodayDayIndex() && (
+                  <span style={{ fontSize: 10, color: t.pink, marginLeft: 8, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.6px" }}>today</span>
+                )}
+              </div>
+
+              {(weekPlan[String(activeDay)] || []).length === 0 ? (
+                <div style={{ fontSize: 12, color: t.textMuted, marginBottom: 10 }}>No meals planned for this day.</div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 10 }}>
+                  {(weekPlan[String(activeDay)] || []).map((meal, mi) => (
+                    <div key={mi} style={s.dayMealRow}>
+                      <span style={{ fontSize: 13, color: t.text, flex: 1 }}>{meal.name}</span>
                       <button
-                        style={s.saveMealBtn}
-                        onClick={() => {
-                          if (newMealInput.trim()) {
-                            addMealToDay(activeDay, newMealInput);
-                            setNewMealInput("");
-                            setAddingMealDay(null);
-                          }
-                        }}
-                      >
-                        Save
-                      </button>
-                      <button
-                        style={s.cancelBtn}
-                        onClick={() => { setAddingMealDay(null); setNewMealInput(""); }}
-                        aria-label="Cancel"
-                      >
-                        ✕
-                      </button>
+                        style={s.removeBtnSm}
+                        onClick={() => removeMealFromDay(activeDay, mi)}
+                        aria-label="Remove meal"
+                      >×</button>
                     </div>
-                  ) : (
-                    <button style={s.addMealDayBtn} onClick={() => setAddingMealDay(activeDay)}>
-                      + Add meal
-                    </button>
-                  )}
+                  ))}
                 </div>
               )}
-            </div>
 
-            {/* ── Grocery list ── */}
-            <div style={{ padding: "20px 16px 8px" }}>
-              <div style={s.sectionHead}>
-                <span style={s.sectionTitle}>Grocery List</span>
-                <button
-                  style={{ ...s.generateBtn, opacity: groceryLoading || !hasWeekMeals ? 0.4 : 1 }}
-                  onClick={handleGenerateGrocery}
-                  disabled={groceryLoading || !hasWeekMeals}
-                >
-                  {groceryLoading ? "…" : "Generate"}
-                </button>
-              </div>
-
-              {!hasWeekMeals ? (
-                <div style={s.planEmpty}>
-                  <div style={{ fontSize: 11, color: t.textMuted, lineHeight: 1.55 }}>
-                    Add meals to your weekly plan to generate a grocery list.
-                  </div>
-                </div>
-              ) : groceryLoading ? (
-                <div style={{ padding: "20px 0", textAlign: "center", fontSize: 13, color: t.textMuted }}>
-                  Building your list…
-                </div>
-              ) : groceryItems.length === 0 ? (
-                <div style={s.planEmpty}>
-                  <div style={{ fontSize: 11, color: t.textMuted, lineHeight: 1.55 }}>
-                    Tap Generate to create a shopping list from this week's meals.
-                  </div>
+              {addingMealDay === activeDay ? (
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <input
+                    style={s.addMealInput}
+                    placeholder="e.g. Oat porridge"
+                    value={newMealInput}
+                    onChange={e => setNewMealInput(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === "Enter" && newMealInput.trim()) {
+                        addMealToDay(activeDay, newMealInput);
+                        setNewMealInput("");
+                        setAddingMealDay(null);
+                      }
+                      if (e.key === "Escape") { setAddingMealDay(null); setNewMealInput(""); }
+                    }}
+                    autoFocus
+                  />
+                  <button
+                    style={s.saveMealBtn}
+                    onClick={() => {
+                      if (newMealInput.trim()) {
+                        addMealToDay(activeDay, newMealInput);
+                        setNewMealInput("");
+                        setAddingMealDay(null);
+                      }
+                    }}
+                  >
+                    Save
+                  </button>
+                  <button
+                    style={s.cancelBtn}
+                    onClick={() => { setAddingMealDay(null); setNewMealInput(""); }}
+                    aria-label="Cancel"
+                  >
+                    ✕
+                  </button>
                 </div>
               ) : (
-                <>
-                  {["Produce", "Dairy", "Protein", "Grains", "Pantry", "Other"].map(category => {
-                    const items = groceryItems
-                      .map((item, originalIndex) => ({ ...item, originalIndex }))
-                      .filter(item => item.category === category);
-                    if (items.length === 0) return null;
-                    return (
-                      <div key={category} style={{ marginBottom: 16 }}>
-                        <div style={s.groceryCatLabel}>{category}</div>
-                        {items.map(item => (
-                          <div key={item.originalIndex} style={s.groceryRow}>
-                            <button
-                              style={{
-                                ...s.checkBox,
-                                ...(item.checked ? s.checkBoxChecked : {}),
-                              }}
-                              onClick={() => toggleGroceryItem(item.originalIndex)}
-                              aria-label={item.checked ? "Uncheck" : "Check"}
-                            >
-                              {item.checked ? "✓" : ""}
-                            </button>
-                            <span style={{ ...s.groceryItem, ...(item.checked ? s.groceryItemDone : {}) }}>
-                              {item.item}
-                            </span>
-                            <span style={s.groceryQty}>{item.quantity}</span>
-                          </div>
-                        ))}
-                      </div>
-                    );
-                  })}
-
-                  <button
-                    style={s.instacartBtn}
-                    onClick={() => setInstacartMsg("Instacart integration coming soon — we're working on it!")}
-                  >
-                    🛒 Send to Instacart
-                  </button>
-                  {instacartMsg && (
-                    <div style={{ fontSize: 12, color: t.textMuted, textAlign: "center", marginTop: 8, fontStyle: "italic" }}>
-                      {instacartMsg}
-                    </div>
-                  )}
-                </>
+                <button style={s.addMealDayBtn} onClick={() => setAddingMealDay(activeDay)}>
+                  + Add meal
+                </button>
               )}
             </div>
+          )}
+        </div>
 
-          </>
-        )}
+        {/* ── Grocery list — always visible, generate gated on AI ── */}
+        <div style={{ padding: "20px 16px 8px" }}>
+          <div style={s.sectionHead}>
+            <span style={s.sectionTitle}>Grocery List</span>
+            {aiEnabled !== false && (
+              <button
+                style={{ ...s.generateBtn, opacity: groceryLoading || !hasWeekMeals ? 0.4 : 1 }}
+                onClick={handleGenerateGrocery}
+                disabled={groceryLoading || !hasWeekMeals}
+              >
+                {groceryLoading ? "…" : "Generate"}
+              </button>
+            )}
+          </div>
+
+          {aiEnabled === false ? (
+            <div style={s.aiDisabledCard}>
+              <span style={{ fontSize: 20 }}>🛒</span>
+              <div style={{ fontSize: 13, color: t.textMuted, lineHeight: 1.6 }}>
+                Enable AI in Settings to generate a grocery list from your weekly plan.
+              </div>
+            </div>
+          ) : !hasWeekMeals ? (
+            <div style={s.planEmpty}>
+              <div style={{ fontSize: 11, color: t.textMuted, lineHeight: 1.55 }}>
+                Add meals to your weekly plan to generate a grocery list.
+              </div>
+            </div>
+          ) : groceryLoading ? (
+            <div style={{ padding: "20px 0", textAlign: "center", fontSize: 13, color: t.textMuted }}>
+              Building your list…
+            </div>
+          ) : groceryItems.length === 0 ? (
+            <div style={s.planEmpty}>
+              <div style={{ fontSize: 11, color: t.textMuted, lineHeight: 1.55 }}>
+                Tap Generate to create a shopping list from this week's meals.
+              </div>
+            </div>
+          ) : (
+            <>
+              {["Produce", "Dairy", "Protein", "Grains", "Pantry", "Other"].map(category => {
+                const items = groceryItems
+                  .map((item, originalIndex) => ({ ...item, originalIndex }))
+                  .filter(item => item.category === category);
+                if (items.length === 0) return null;
+                return (
+                  <div key={category} style={{ marginBottom: 16 }}>
+                    <div style={s.groceryCatLabel}>{category}</div>
+                    {items.map(item => (
+                      <div key={item.originalIndex} style={s.groceryRow}>
+                        <button
+                          style={{
+                            ...s.checkBox,
+                            ...(item.checked ? s.checkBoxChecked : {}),
+                          }}
+                          onClick={() => toggleGroceryItem(item.originalIndex)}
+                          aria-label={item.checked ? "Uncheck" : "Check"}
+                        >
+                          {item.checked ? "✓" : ""}
+                        </button>
+                        <span style={{ ...s.groceryItem, ...(item.checked ? s.groceryItemDone : {}) }}>
+                          {item.item}
+                        </span>
+                        <span style={s.groceryQty}>{item.quantity}</span>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })}
+
+              <button
+                style={s.instacartBtn}
+                onClick={() => setInstacartMsg("Instacart integration coming soon — we're working on it!")}
+              >
+                🛒 Send to Instacart
+              </button>
+              {instacartMsg && (
+                <div style={{ fontSize: 12, color: t.textMuted, textAlign: "center", marginTop: 8, fontStyle: "italic" }}>
+                  {instacartMsg}
+                </div>
+              )}
+            </>
+          )}
+        </div>
 
         {/* ── Recent meal log ── */}
         <div style={{ ...s.sectionHead, paddingTop: 20 }}>
@@ -718,6 +742,15 @@ const s = {
     borderRadius: t.r.lg,
     padding: "16px 20px",
     textAlign: "center",
+  },
+  aiDisabledCard: {
+    display: "flex",
+    alignItems: "flex-start",
+    gap: 12,
+    background: t.bgSurface,
+    border: `1px solid ${t.border}`,
+    borderRadius: t.r.lg,
+    padding: "16px",
   },
   // ── Recommendation cards ──
   hscroll: {

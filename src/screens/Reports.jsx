@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useChild } from "../hooks/useChild";
 import { usePatterns } from "../hooks/usePatterns";
+import { useAI } from "../hooks/useAI";
 import { t, shadows } from "../styles/tokens";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -31,8 +32,9 @@ function fmtLastUpdated(date) {
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function Reports() {
-  const { child }    = useChild();
-  const navigate     = useNavigate();
+  const { child }     = useChild();
+  const navigate      = useNavigate();
+  const { aiEnabled } = useAI();
   const { patterns, lastUpdated, loading, refreshing, refresh } = usePatterns();
 
   const [reportMsg, setReportMsg] = useState(false);
@@ -80,24 +82,36 @@ export default function Reports() {
                   : "No analysis yet"}
             </div>
           </div>
-          <button
-            className="pat-refresh"
-            style={{ ...s.refreshBtn, opacity: (refreshing || loading) ? 0.5 : 1 }}
-            onClick={refresh}
-            disabled={refreshing || loading}
-          >
-            <span style={{
-              display: "inline-block",
-              animation: refreshing ? "spin 0.9s linear infinite" : "none",
-            }}>↻</span>
-            {" "}{refreshing ? "Analysing…" : "Refresh"}
-          </button>
+          {aiEnabled !== false && (
+            <button
+              className="pat-refresh"
+              style={{ ...s.refreshBtn, opacity: (refreshing || loading) ? 0.5 : 1 }}
+              onClick={refresh}
+              disabled={refreshing || loading}
+            >
+              <span style={{
+                display: "inline-block",
+                animation: refreshing ? "spin 0.9s linear infinite" : "none",
+              }}>↻</span>
+              {" "}{refreshing ? "Analysing…" : "Refresh"}
+            </button>
+          )}
         </div>
 
         <div style={s.body}>
 
+          {/* ── AI disabled ── */}
+          {aiEnabled === false && (
+            <div style={s.aiDisabledCard}>
+              <span style={{ fontSize: 24 }}>🧩</span>
+              <div style={{ fontSize: 14, color: t.textMuted, lineHeight: 1.65 }}>
+                Enable AI in Settings to generate pattern insights.
+              </div>
+            </div>
+          )}
+
           {/* ── Loading skeleton ── */}
-          {loading && (
+          {aiEnabled !== false && loading && (
             <div style={s.empty}>
               <div style={s.emptyIcon}>⏳</div>
               <div style={s.emptyMuted}>Loading patterns…</div>
@@ -105,7 +119,7 @@ export default function Reports() {
           )}
 
           {/* ── Empty state ── */}
-          {!loading && !hasAny && (
+          {aiEnabled !== false && !loading && !hasAny && (
             <div style={s.empty}>
               <div style={s.emptyIcon}>🧩</div>
               <div style={s.emptyTitle}>No patterns yet</div>
@@ -124,7 +138,7 @@ export default function Reports() {
           )}
 
           {/* ── Pattern sections ── */}
-          {!loading && hasAny && SECTIONS.map(sec => {
+          {aiEnabled !== false && !loading && hasAny && SECTIONS.map(sec => {
             const group = grouped[sec.key];
             if (!group || group.length === 0) return null;
             return (
@@ -166,7 +180,7 @@ export default function Reports() {
           })}
 
           {/* ── Medical report placeholder ── */}
-          {!loading && hasAny && (
+          {aiEnabled !== false && !loading && hasAny && (
             <div style={s.reportWrap}>
               <button
                 className="pat-report"
@@ -235,6 +249,17 @@ const s = {
     display: "flex",
     flexDirection: "column",
     gap: 28,
+  },
+
+  // AI disabled
+  aiDisabledCard: {
+    display: "flex",
+    alignItems: "flex-start",
+    gap: 14,
+    background: t.bgSurface,
+    border: `1px solid ${t.border}`,
+    borderRadius: t.r.lg,
+    padding: "16px",
   },
 
   // Empty / loading

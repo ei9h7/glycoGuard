@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   collection, query, orderBy, limit, where, getDocs, Timestamp,
 } from "firebase/firestore";
 import { db, auth } from "../firebase";
 import { useChild } from "../hooks/useChild";
+import { useAI } from "../hooks/useAI";
 import { searchVectors } from "../services/vectorStore";
 import { t, shadows } from "../styles/tokens";
 
@@ -194,7 +195,9 @@ async function callClaude(system, messages) {
 
 export default function AI() {
   const { child, childId } = useChild();
-  const location = useLocation();
+  const { aiEnabled }      = useAI();
+  const navigate           = useNavigate();
+  const location           = useLocation();
 
   const [messages,    setMessages]    = useState([]);
   const [input,       setInput]       = useState("");
@@ -276,6 +279,22 @@ export default function AI() {
   const handleKey = (e) => {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
   };
+
+  // AI features disabled — show a friendly empty state
+  if (aiEnabled === false) {
+    return (
+      <div style={s.disabledRoot}>
+        <div style={{ fontSize: 52, marginBottom: 16 }}>🤖</div>
+        <div style={s.disabledTitle}>AI features are off</div>
+        <div style={s.disabledBody}>
+          Enable AI features in Settings to use the assistant.
+        </div>
+        <button style={s.disabledBtn} onClick={() => navigate("/settings")}>
+          Go to Settings
+        </button>
+      </div>
+    );
+  }
 
   if (!child) {
     return (
@@ -386,6 +405,43 @@ export default function AI() {
 // ── Styles ────────────────────────────────────────────────────────────────────
 
 const s = {
+  // ── Disabled empty state ──
+  disabledRoot: {
+    fontFamily: t.fontSans,
+    color: t.text,
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: "70vh",
+    padding: "0 32px",
+    textAlign: "center",
+  },
+  disabledTitle: {
+    fontFamily: t.fontDisplay,
+    fontSize: 22,
+    color: t.text,
+    marginBottom: 10,
+  },
+  disabledBody: {
+    fontSize: 14,
+    color: t.textMuted,
+    lineHeight: 1.65,
+    marginBottom: 24,
+    maxWidth: 280,
+  },
+  disabledBtn: {
+    padding: "12px 28px",
+    borderRadius: t.r.lg,
+    background: t.pink,
+    color: t.navy,
+    border: "none",
+    fontSize: 14,
+    fontWeight: 600,
+    cursor: "pointer",
+    fontFamily: t.fontSans,
+  },
+
   root: {
     fontFamily: t.fontSans,
     color: t.text,

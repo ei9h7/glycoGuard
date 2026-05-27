@@ -2,9 +2,11 @@ import React, { useState, useRef } from "react";
 import { t, shadows } from "../styles/tokens";
 import analyzeMealPhoto from "../services/mealPhotoAnalysis";
 import { useChild } from "../hooks/useChild";
+import { useAI } from "../hooks/useAI";
 
 export default function LogMealModal({ open, onClose, onSave, saving }) {
-  const { child } = useChild();
+  const { child }     = useChild();
+  const { aiEnabled } = useAI();
   const [description, setDescription] = useState("");
   const [carbs, setCarbs] = useState("");
   const [notes, setNotes] = useState("");
@@ -78,31 +80,35 @@ export default function LogMealModal({ open, onClose, onSave, saving }) {
           <button style={styles.closeButton} onClick={onClose} type="button">✕</button>
         </div>
 
-        {/* Camera/Photo Button */}
+        {/* Camera/Photo Button — hidden when AI features are disabled */}
         <div style={{ marginBottom: 12 }}>
-          <button
-            type="button"
-            style={{
-              background: t.pink,
-              color: "#fff",
-              borderRadius: 8,
-              border: "none",
-              padding: "10px 18px",
-              fontSize: 20,
-              cursor: "pointer",
-              marginBottom: 6,
-            }}
-            onClick={() => fileInputRef.current?.click()}
-          >
-            📷 Add Photo
-          </button>
-          <input
-            type="file"
-            accept="image/*"
-            style={{ display: "none" }}
-            ref={fileInputRef}
-            onChange={handlePhotoChange}
-          />
+          {aiEnabled !== false && (
+            <>
+              <button
+                type="button"
+                style={{
+                  background: t.pink,
+                  color: "#fff",
+                  borderRadius: 8,
+                  border: "none",
+                  padding: "10px 18px",
+                  fontSize: 20,
+                  cursor: "pointer",
+                  marginBottom: 6,
+                }}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                📷 Add Photo
+              </button>
+              <input
+                type="file"
+                accept="image/*"
+                style={{ display: "none" }}
+                ref={fileInputRef}
+                onChange={handlePhotoChange}
+              />
+            </>
+          )}
           {photoPreview && (
             <div style={{ margin: "8px 0", display: "flex", alignItems: "center" }}>
               <img
@@ -177,7 +183,7 @@ export default function LogMealModal({ open, onClose, onSave, saving }) {
               {analysisError}
             </div>
           )}
-        </div>
+        </div>  {/* end Camera/Photo section */}
 
         {/* Description */}
         <label style={styles.label} htmlFor="meal-description">Meal description</label>

@@ -5,6 +5,7 @@ import { db, auth } from "../firebase";
 import { useChild } from "../hooks/useChild";
 import { useAuth } from "../hooks/useAuth";
 import { useUnits } from "../hooks/useUnits";
+import { useAI } from "../hooks/useAI";
 import { usePreferenceNotes } from "../hooks/usePreferenceNotes";
 import { useDocuments } from "../hooks/useDocuments";
 import { t, shadows } from "../styles/tokens";
@@ -33,6 +34,7 @@ export default function Settings() {
   const { user } = useAuth();
   const { child, childId } = useChild();
   const { unit, setUnit } = useUnits();
+  const { aiEnabled, setAIEnabled } = useAI();
   const { notes, loading: notesLoading, addNote, removeNote } = usePreferenceNotes();
   const { documents, loading: docsLoading, uploadDocument, removeDocument } = useDocuments();
 
@@ -378,6 +380,43 @@ export default function Settings() {
         </div>
       </div>
 
+      {/* AI Features */}
+      <div style={s.sectionHead}>
+        <span style={s.sectionTitle}>AI Features</span>
+      </div>
+
+      <div style={{ padding: "0 16px" }}>
+        <div style={s.card}>
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+            <span style={{ fontSize: 16, marginTop: 2 }}>🤖</span>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 4 }}>AI-powered features</div>
+              <div style={{ fontSize: 12, color: t.textMuted, lineHeight: 1.5 }}>
+                Meal analysis, pattern recognition, recommendations and AI assistant
+              </div>
+            </div>
+            <button
+              style={{
+                ...s.toggleTrack,
+                background: aiEnabled ? t.pink : t.border,
+              }}
+              onClick={() => setAIEnabled(!aiEnabled)}
+              aria-label={aiEnabled ? "Disable AI features" : "Enable AI features"}
+            >
+              <div style={{
+                ...s.toggleThumb,
+                transform: aiEnabled ? "translateX(20px)" : "translateX(2px)",
+              }} />
+            </button>
+          </div>
+          {!aiEnabled && (
+            <div style={{ fontSize: 12, color: t.textMuted, lineHeight: 1.5, marginTop: 12, paddingTop: 12, borderTop: `1px solid ${t.border}` }}>
+              You can re-enable AI features at any time.
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* Account section */}
       <div style={s.sectionHead}>
         <span style={s.sectionTitle}>Account</span>
@@ -454,4 +493,6 @@ const s = {
   typeBadge:      { fontSize:10, fontWeight:600, padding:"2px 7px", borderRadius:t.r.pill, letterSpacing:"0.4px", textTransform:"uppercase" },
   typeBadgeLab:   { background:`rgba(0,214,143,0.12)`, color:t.greenDark },
   typeBadgeLetter:{ background:`rgba(255,93,168,0.1)`,  color:t.pink },
+  toggleTrack:    { position:"relative", width:44, height:24, borderRadius:t.r.pill, border:"none", cursor:"pointer", padding:0, flexShrink:0, transition:"background 0.2s" },
+  toggleThumb:    { position:"absolute", top:2, width:20, height:20, borderRadius:"50%", background:"#fff", transition:"transform 0.2s", boxShadow:"0 1px 3px rgba(0,0,0,0.2)" },
 };

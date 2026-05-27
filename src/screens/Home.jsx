@@ -5,6 +5,7 @@ import { db, auth } from "../firebase";
 import { upsertVector } from "../services/vectorStore";
 import { useChild } from "../hooks/useChild";
 import { useUnits } from "../hooks/useUnits";
+import { useAI } from "../hooks/useAI";
 import { useSharedMeals, useSharedSymptoms } from "../hooks/useSharedData";
 import { t, shadows } from "../styles/tokens";
 import GlycoGuardLogo from "../components/GlycoGuardLogo";
@@ -91,6 +92,7 @@ export default function Home() {
   const navigate = useNavigate();
   const { child, childId } = useChild();
   const { fmt, displayUnit } = useUnits();
+  const { aiEnabled } = useAI();
   const [now, setNow] = useState(Date.now());
   const [showMealModal, setShowMealModal] = useState(false);
   const [showGlucoseModal, setShowGlucoseModal] = useState(false);
@@ -177,7 +179,8 @@ export default function Home() {
           glucoseAtTime:    lastGlucose?.value || null,
         }
       );
-      if (obsText.trim()) {
+      // Only vectorise the observation when AI features are enabled
+      if (obsText.trim() && aiEnabled !== false) {
         try {
           await upsertVector({
             id:      ref.id,

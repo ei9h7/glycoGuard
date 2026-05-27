@@ -4,6 +4,7 @@ import { doc, getDoc } from "firebase/firestore";
 import { db } from "../firebase";
 import { useAuth } from "../hooks/useAuth";
 import { useChild } from "../hooks/useChild";
+import { useAI } from "../hooks/useAI";
 import { generatePatterns } from "../services/patternEngine";
 import { t, shadows } from "../styles/tokens";
 
@@ -17,6 +18,34 @@ const NAV = [
 ];
 
 const FEEDBACK_URL = "https://forms.gle/pGMjXHD6M7Mbh68m9";
+
+// ── AI opt-in modal ───────────────────────────────────────────────────────────
+
+function AIOptInModal({ onEnable, onDecline }) {
+  return (
+    <div style={s.backdrop}>
+      <div style={s.sheet} onClick={e => e.stopPropagation()}>
+        <div style={s.handle} />
+
+        <div style={{ fontSize: 40, textAlign: "center", marginBottom: 14 }}>✨</div>
+
+        <div style={s.sheetTitle}>AI-powered features</div>
+        <div style={s.sheetBody}>
+          GlycoGuard uses AI to analyse meal photos, recognise glucose patterns, and give
+          personalised recommendations. Your data stays private and is only used to help
+          you manage your child's care. You can change this at any time in Settings.
+        </div>
+
+        <button style={s.primaryBtn} onClick={onEnable}>
+          Enable AI
+        </button>
+        <button style={s.secondaryBtn} onClick={onDecline}>
+          Not right now
+        </button>
+      </div>
+    </div>
+  );
+}
 
 const ROUTE_LABELS = {
   "/":         "Home",
@@ -63,11 +92,15 @@ function FeedbackModal({ onClose, routePath }) {
 }
 
 export default function AppShell() {
-  const { user }           = useAuth();
-  const { child, childId } = useChild();
-  const checkedRef         = useRef(false);
-  const location           = useLocation();
-  const [showFeedback, setShowFeedback] = useState(false);
+  const { user }                              = useAuth();
+  const { child, childId }                   = useChild();
+  const { aiEnabled, aiNeverSet, setAIEnabled, loading: aiLoading } = useAI();
+  const checkedRef                           = useRef(false);
+  const location                             = useLocation();
+  const [showFeedback, setShowFeedback]      = useState(false);
+
+  // Filter nav: hide AI Assistant when AI features are disabled
+  const visibleNav = NAV.filter(n => n.to !== "/ai" || aiEnabled !== false);
 
   // Once per session: refresh patterns in background if stale (>6 hours)
   useEffect(() => {
@@ -108,7 +141,7 @@ export default function AppShell() {
       </button>
 
       <nav style={s.nav}>
-        {NAV.map(n => (
+        {visibleNav.map(n => (
           <NavLink key={n.to} to={n.to} end={n.to === "/"}
             style={({ isActive }) => ({
               ...s.navItem,
@@ -124,6 +157,14 @@ export default function AppShell() {
         <FeedbackModal
           onClose={() => setShowFeedback(false)}
           routePath={location.pathname}
+        />
+      )}
+
+      {/* One-time AI opt-in modal — shows when aiEnabled has never been set */}
+      {!aiLoading && aiNeverSet && (
+        <AIOptInModal
+          onEnable={()  => setAIEnabled(true)}
+          onDecline={() => setAIEnabled(false)}
         />
       )}
     </div>
