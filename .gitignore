@@ -52,3 +52,8 @@ copilot-instructions.md
 coverage
 
 # Dev container — devcontainer.json is intentionally tracked for Codespaces support
+.claude/settings.json
+.claude/projects/
+.claude/
+skills-lock.json
+.vscode/
