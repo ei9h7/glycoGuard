@@ -56,3 +56,4 @@ coverage
 .claude/projects/
 .claude/
 skills-lock.json
+.vscode/
