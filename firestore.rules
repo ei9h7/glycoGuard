@@ -1,0 +1,264 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ─── Auth helpers ────────────────────────────────────────────────────────
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    // ─── Field-value helpers ─────────────────────────────────────────────────
+    function validLoggedBy() {
+      return request.resource.data.loggedBy == request.auth.uid;
+    }
+
+    function validUnitPref() {
+      return request.resource.data.unitPreference in ['mmol', 'mgdl'];
+    }
+
+    function validChildName() {
+      return request.resource.data.name is string
+          && request.resource.data.name.size() > 0
+          && request.resource.data.name.size() <= 100;
+    }
+
+    function validGlucoseTargets() {
+      return request.resource.data.glucoseTargetMin is number
+          && request.resource.data.glucoseTargetMax is number
+          && request.resource.data.glucoseTargetMin >= 1.0
+          && request.resource.data.glucoseTargetMax <= 15.0
+          && request.resource.data.glucoseTargetMin < request.resource.data.glucoseTargetMax;
+    }
+
+    // ─── Co-parent helpers ───────────────────────────────────────────────────
+
+    // Fetch a child document for sharing-consent checks.
+    // Each call costs one Firestore read; subcollection co-parent read rules
+    // use this twice (owner child doc + co-parent child doc).
+    function getChildDoc(uid, childId) {
+      return get(/databases/$(database)/documents/users/$(uid)/children/$(childId)).data;
+    }
+
+    // Returns true when the current requester is an authenticated co-parent who
+    // has mutual sharing consent with the owner for the given category.
+    function coParentCanRead(ownerUid, childId, category) {
+      let child = getChildDoc(ownerUid, childId);
+      return isSignedIn()
+          && child.coParentStatus == 'connected'
+          && child.coParentUid == request.auth.uid
+          && child.sharing[category] == true
+          && getChildDoc(request.auth.uid, child.coParentChildId).sharing[category] == true;
+    }
+
+    // Permits the cross-user write that coParentMatch.js makes when linking two
+    // parents. The requester's auth email must match the coParentEmail field
+    // stored on the target child doc, and only the three linking fields may change.
+    function isCoParentMatchWrite(existingChild) {
+      return isSignedIn()
+          && request.auth.token.email == existingChild.coParentEmail
+          && request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(['coParentUid', 'coParentChildId', 'coParentStatus'])
+          && request.resource.data.coParentStatus == 'connected'
+          && request.resource.data.coParentUid == request.auth.uid;
+    }
+
+    // ─── Rate limiting ───────────────────────────────────────────────────────
+    // Client MUST use writeBatch() to atomically update _rateLimits/{uid} and
+    // the data document together. The rule reads the counter before the batch
+    // commits, giving best-effort flood protection. A cooperative client that
+    // resets its own counter can bypass this; for hard enforcement route writes
+    // through Cloud Functions.
+    function withinRateLimit(countField, windowField, cap, windowSeconds) {
+      let rl = get(/databases/$(database)/documents/_rateLimits/$(request.auth.uid)).data;
+      return (request.time > rl[windowField] + duration.value(windowSeconds, 's'))
+          || (rl[countField] < cap);
+    }
+
+    // ─── Rate-limit counter collection ───────────────────────────────────────
+    // Schema: { glucoseCount, glucoseWindow, mealCount, mealWindow,
+    //           symptomCount, symptomWindow, documentCount, documentWindow,
+    //           prefNoteCount, prefNoteWindow }
+    match /_rateLimits/{uid} {
+      allow read:   if isOwner(uid);
+      allow create: if isOwner(uid);
+      allow update: if isOwner(uid);
+      allow delete: if false;
+    }
+
+    // ─── User profiles ───────────────────────────────────────────────────────
+    match /users/{uid} {
+      allow read:   if isOwner(uid);
+
+      allow create: if isOwner(uid)
+          && request.resource.data.displayName is string
+          && request.resource.data.displayName.size() > 0
+          && request.resource.data.displayName.size() <= 100
+          && validUnitPref()
+          && request.resource.data.createdAt == request.time;
+
+      // Partial updates (useUnits.js, useAI.js) — only validate changed fields.
+      allow update: if isOwner(uid)
+          && (!request.resource.data.diff(resource.data).affectedKeys()
+                 .hasAny(['unitPreference'])
+              || validUnitPref())
+          && (!request.resource.data.diff(resource.data).affectedKeys()
+                 .hasAny(['displayName'])
+              || (request.resource.data.displayName is string
+                  && request.resource.data.displayName.size() > 0
+                  && request.resource.data.displayName.size() <= 100));
+
+      allow delete: if false; // Accounts deleted via Admin SDK only
+    }
+
+    // ─── Child profiles ───────────────────────────────────────────────────────
+    match /users/{uid}/children/{childId} {
+
+      // Co-parent reads child doc to display sharing toggles (Sharing.jsx /
+      // useSharedData.js) — permitted when they are the stored coParentUid.
+      allow read: if isOwner(uid)
+          || (isSignedIn()
+              && resource.data.coParentStatus == 'connected'
+              && resource.data.coParentUid == request.auth.uid);
+
+      allow create: if isOwner(uid)
+          && validChildName()
+          && validGlucoseTargets()
+          && request.resource.data.diagnosis is string
+          && request.resource.data.diagnosis.size() > 0
+          && request.resource.data.diagnosis.size() <= 150
+          && request.resource.data.createdAt == request.time;
+
+      // Owner edits (Settings.jsx, Sharing.jsx sharing toggles, coParentMatch.js
+      // self-side write) OR cross-user co-parent linking write.
+      allow update: if (isOwner(uid)
+              && (!request.resource.data.diff(resource.data).affectedKeys()
+                     .hasAny(['name'])
+                  || validChildName())
+              && (!request.resource.data.diff(resource.data).affectedKeys()
+                     .hasAny(['glucoseTargetMin', 'glucoseTargetMax'])
+                  || validGlucoseTargets())
+              && (!request.resource.data.diff(resource.data).affectedKeys()
+                     .hasAny(['diagnosis'])
+                  || (request.resource.data.diagnosis is string
+                      && request.resource.data.diagnosis.size() > 0
+                      && request.resource.data.diagnosis.size() <= 150)))
+          || isCoParentMatchWrite(resource.data);
+
+      allow delete: if isOwner(uid);
+    }
+
+    // ─── Glucose readings ─────────────────────────────────────────────────────
+    match /users/{uid}/children/{childId}/glucoseReadings/{readingId} {
+      allow read: if isOwner(uid)
+          || coParentCanRead(uid, childId, 'glucose');
+
+      allow create: if isOwner(uid)
+          && validLoggedBy()
+          && request.resource.data.value is number
+          && request.resource.data.value >= 0.5
+          && request.resource.data.value <= 55.0
+          && request.resource.data.timestamp == request.time
+          && withinRateLimit('glucoseCount', 'glucoseWindow', 100, 3600);
+
+      allow update: if false; // Readings are immutable once logged
+      allow delete: if isOwner(uid);
+    }
+
+    // ─── Meal logs ────────────────────────────────────────────────────────────
+    match /users/{uid}/children/{childId}/mealLogs/{logId} {
+      allow read: if isOwner(uid)
+          || coParentCanRead(uid, childId, 'meals');
+
+      allow create: if isOwner(uid)
+          && validLoggedBy()
+          && request.resource.data.descriptionText is string
+          && request.resource.data.descriptionText.size() > 0
+          && request.resource.data.descriptionText.size() <= 500
+          && (!('carbsEstimate' in request.resource.data)
+              || request.resource.data.carbsEstimate is number)
+          && request.resource.data.timestamp == request.time
+          && withinRateLimit('mealCount', 'mealWindow', 30, 3600);
+
+      allow update: if false;
+      allow delete: if isOwner(uid);
+    }
+
+    // ─── Symptom events ───────────────────────────────────────────────────────
+    match /users/{uid}/children/{childId}/symptomEvents/{eventId} {
+      allow read: if isOwner(uid)
+          || coParentCanRead(uid, childId, 'symptoms');
+
+      allow create: if isOwner(uid)
+          && validLoggedBy()
+          && (!('quickTapSymptoms' in request.resource.data)
+              || request.resource.data.quickTapSymptoms is list)
+          && (!('observationText' in request.resource.data)
+              || (request.resource.data.observationText is string
+                  && request.resource.data.observationText.size() <= 2000))
+          && (!('glucoseAtTime' in request.resource.data)
+              || request.resource.data.glucoseAtTime is number)
+          && request.resource.data.timestamp == request.time
+          && withinRateLimit('symptomCount', 'symptomWindow', 30, 3600);
+
+      allow update: if false;
+      allow delete: if isOwner(uid);
+    }
+
+    // ─── Documents (uploaded PDFs) ────────────────────────────────────────────
+    match /users/{uid}/children/{childId}/documents/{docId} {
+      allow read: if isOwner(uid)
+          || coParentCanRead(uid, childId, 'documents');
+
+      allow create: if isOwner(uid)
+          && validLoggedBy()
+          && request.resource.data.filename is string
+          && request.resource.data.filename.size() > 0
+          && request.resource.data.filename.size() <= 255
+          && request.resource.data.type in ['lab_result', 'provider_note']
+          && request.resource.data.createdAt == request.time
+          && (!('extractedText' in request.resource.data)
+              || request.resource.data.extractedText.size() <= 500000)
+          && withinRateLimit('documentCount', 'documentWindow', 10, 86400);
+
+      allow update: if false;
+      allow delete: if isOwner(uid);
+    }
+
+    // ─── Preference notes ─────────────────────────────────────────────────────
+    match /users/{uid}/children/{childId}/preferenceNotes/{noteId} {
+      // No co-parent read — 'preferenceNotes' is not a sharing category.
+      allow read: if isOwner(uid);
+
+      allow create: if isOwner(uid)
+          && validLoggedBy()
+          && request.resource.data.content is string
+          && request.resource.data.content.size() > 0
+          && request.resource.data.content.size() <= 2000
+          && request.resource.data.createdAt == request.time
+          && withinRateLimit('prefNoteCount', 'prefNoteWindow', 20, 3600);
+
+      allow update: if false;
+      allow delete: if isOwner(uid);
+    }
+
+    // ─── Pattern summary ──────────────────────────────────────────────────────
+    // patternEngine.js always writes to the fixed document ID "latest" via
+    // setDoc() (which requires both create and update permission).
+    // Locking to the literal path prevents writes to arbitrary doc IDs.
+    match /users/{uid}/children/{childId}/patternSummary/latest {
+      allow read: if isOwner(uid)
+          || coParentCanRead(uid, childId, 'patterns');
+
+      // No field-level validation — patterns is a complex nested array generated
+      // by the engine. Owner restriction is the meaningful security boundary.
+      allow create: if isOwner(uid);
+      allow update: if isOwner(uid);
+      allow delete: if false;
+    }
+
+  }
+}
