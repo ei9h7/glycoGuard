@@ -1,0 +1,14 @@
+{
+  "indexes": [],
+  "fieldOverrides": [],
+  "collectionGroupIndexes": [
+    {
+      "collectionGroup": "children",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "dob", "order": "ASCENDING" },
+        { "fieldPath": "coParentEmail", "order": "ASCENDING" }
+      ]
+    }
+  ]
+}
