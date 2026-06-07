@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { doc, setDoc, onSnapshot, arrayUnion } from "firebase/firestore";
-import { db, auth } from "../firebase";
+import { httpsCallable } from "firebase/functions";
+import { db, auth, functions } from "../firebase";
 import { useChild } from "../hooks/useChild";
 import { usePatterns } from "../hooks/usePatterns";
 import { useAI } from "../hooks/useAI";
@@ -8,8 +9,7 @@ import { usePreferenceNotes } from "../hooks/usePreferenceNotes";
 import { useSharedMeals } from "../hooks/useSharedData";
 import { t, shadows } from "../styles/tokens";
 
-const OPENROUTER_KEY = import.meta.env.VITE_OPENROUTER_API_KEY;
-const MODEL = "openrouter/auto";
+const aiChatFn = httpsCallable(functions, "aiChat");
 
 const GI_COLORS = {
   "Low":        t.green,
@@ -139,30 +139,15 @@ async function generateRecommendations(child, patterns, preferenceChunks) {
     ...topPrefs.map(p => `- ${typeof p === "string" ? p : (p.content || "")}`),
   ].join("\n");
 
-  const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type":  "application/json",
-      "Authorization": `Bearer ${OPENROUTER_KEY}`,
-      "HTTP-Referer":  "https://glycoguard.app",
-      "X-Title":       "GlycoGuard",
-    },
-    body: JSON.stringify({
-      model:      MODEL,
-      max_tokens: 1200,
-      messages: [
-        {
-          role: "system",
-          content: "You are a pediatric nutrition assistant specializing in hypoglycemia management. Based on the child's glucose patterns and dietary preferences, generate exactly 5 meal or snack recommendations. Respond with ONLY a JSON array of 5 objects, each with these exact fields: name (string), description (string, one sentence), gi (string, one of: Low / Low-Medium / Medium / High), carbsEstimate (string, e.g. '12g'), whyRecommended (string, one sentence explaining why this fits the child's patterns), emoji (single relevant food emoji). No other text, no markdown fences.",
-        },
-        { role: "user", content: userPrompt },
-      ],
-    }),
+  const systemPrompt = "You are a pediatric nutrition assistant specializing in hypoglycemia management. Based on the child's glucose patterns and dietary preferences, generate exactly 5 meal or snack recommendations. Respond with ONLY a JSON array of 5 objects, each with these exact fields: name (string), description (string, one sentence), gi (string, one of: Low / Low-Medium / Medium / High), carbsEstimate (string, e.g. '12g'), whyRecommended (string, one sentence explaining why this fits the child's patterns), emoji (single relevant food emoji). No other text, no markdown fences.";
+
+  const result = await aiChatFn({
+    systemPrompt,
+    messages:   [{ role: "user", content: userPrompt }],
+    maxTokens:  1200,
   });
 
-  if (!res.ok) throw new Error(await res.text());
-  const data = await res.json();
-  let raw = (data.choices[0].message.content || "").trim();
+  let raw = (result.data.content || "").trim();
   raw = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
 
   try {
@@ -177,33 +162,18 @@ async function generateRecommendations(child, patterns, preferenceChunks) {
 async function generateGroceryList(mealNames) {
   if (!mealNames || mealNames.length === 0) return [];
 
-  const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type":  "application/json",
-      "Authorization": `Bearer ${OPENROUTER_KEY}`,
-      "HTTP-Referer":  "https://glycoguard.app",
-      "X-Title":       "GlycoGuard",
-    },
-    body: JSON.stringify({
-      model:      MODEL,
-      max_tokens: 800,
-      messages: [
-        {
-          role: "system",
-          content: "You are a pediatric nutrition assistant. Given a list of meals for the week, generate a consolidated grocery list. Respond with ONLY a JSON array of objects, each with these exact fields: item (string), category (string, one of: Produce / Dairy / Protein / Grains / Pantry / Other), quantity (string, e.g. 'x4' or '1 dozen' or '500g'). No other text, no markdown fences.",
-        },
-        {
-          role: "user",
-          content: `This week's meals:\n${mealNames.map((n, i) => `${i + 1}. ${n}`).join("\n")}\n\nGenerate a grocery list.`,
-        },
-      ],
-    }),
+  const systemPrompt = "You are a pediatric nutrition assistant. Given a list of meals for the week, generate a consolidated grocery list. Respond with ONLY a JSON array of objects, each with these exact fields: item (string), category (string, one of: Produce / Dairy / Protein / Grains / Pantry / Other), quantity (string, e.g. 'x4' or '1 dozen' or '500g'). No other text, no markdown fences.";
+
+  const result = await aiChatFn({
+    systemPrompt,
+    messages: [{
+      role:    "user",
+      content: `This week's meals:\n${mealNames.map((n, i) => `${i + 1}. ${n}`).join("\n")}\n\nGenerate a grocery list.`,
+    }],
+    maxTokens: 800,
   });
 
-  if (!res.ok) throw new Error(await res.text());
-  const data = await res.json();
-  let raw = (data.choices[0].message.content || "").trim();
+  let raw = (result.data.content || "").trim();
   raw = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
 
   try {

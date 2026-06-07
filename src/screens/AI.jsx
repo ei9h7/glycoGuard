@@ -3,14 +3,14 @@ import { useLocation, useNavigate } from "react-router-dom";
 import {
   collection, query, orderBy, limit, where, getDocs, Timestamp,
 } from "firebase/firestore";
-import { db, auth } from "../firebase";
+import { httpsCallable } from "firebase/functions";
+import { db, auth, functions } from "../firebase";
 import { useChild } from "../hooks/useChild";
 import { useAI } from "../hooks/useAI";
 import { searchVectors } from "../services/vectorStore";
 import { t, shadows } from "../styles/tokens";
 
-const OPENROUTER_KEY = import.meta.env.VITE_OPENROUTER_API_KEY;
-const MODEL = "openrouter/auto";
+const aiChatFn = httpsCallable(functions, "aiChat");
 
 // ── Pure helpers ──────────────────────────────────────────────────────────────
 
@@ -169,26 +169,11 @@ async function assembleContext(child, childId, queryText) {
   return { system, lastMeal, recentGluc, level, minSinceMeal };
 }
 
-// ── OpenRouter API call ───────────────────────────────────────────────────────
+// ── AI chat via Cloud Function ────────────────────────────────────────────────
 
 async function callClaude(system, messages) {
-  const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-    method:  "POST",
-    headers: {
-      "Content-Type":  "application/json",
-      "Authorization": `Bearer ${OPENROUTER_KEY}`,
-      "HTTP-Referer":  "https://glycoguard.app",
-      "X-Title":       "GlycoGuard",
-    },
-    body: JSON.stringify({
-      model: MODEL,
-      max_tokens: 1000,
-      messages: [{ role: "system", content: system }, ...messages],
-    }),
-  });
-  if (!res.ok) throw new Error(await res.text());
-  const data = await res.json();
-  return data.choices[0].message.content;
+  const result = await aiChatFn({ systemPrompt: system, messages, maxTokens: 1000 });
+  return result.data.content;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────

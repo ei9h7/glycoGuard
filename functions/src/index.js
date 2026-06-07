@@ -154,3 +154,51 @@ exports.deleteVector = onCall(async (request) => {
   await index.deleteOne(id);
   return { success: true };
 });
+
+// ── aiChat ────────────────────────────────────────────────────────────────────
+// Proxies OpenRouter chat completions so the API key stays server-side.
+//
+// data: {
+//   messages:     { role: string, content: string }[]
+//   systemPrompt?: string   — prepended as a system message if provided
+//   maxTokens?:   number    — default 1000
+// }
+
+exports.aiChat = onCall(async (request) => {
+  assertAuth(request);
+  const { messages, systemPrompt, maxTokens = 1000 } = request.data;
+
+  if (!messages || !Array.isArray(messages) || messages.length === 0) {
+    throw new HttpsError("invalid-argument", "messages array is required.");
+  }
+
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey) throw new HttpsError("internal", "OpenRouter API key not configured");
+
+  const payload = {
+    model:      "openrouter/auto",
+    max_tokens: maxTokens,
+    messages:   systemPrompt
+      ? [{ role: "system", content: systemPrompt }, ...messages]
+      : messages,
+  };
+
+  const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    method:  "POST",
+    headers: {
+      "Content-Type":  "application/json",
+      "Authorization": `Bearer ${apiKey}`,
+      "HTTP-Referer":  "https://glycoguard.app",
+      "X-Title":       "GlycoGuard",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const err = await res.text();
+    throw new HttpsError("internal", `OpenRouter error: ${err}`);
+  }
+
+  const data = await res.json();
+  return { content: data.choices[0].message.content };
+});
