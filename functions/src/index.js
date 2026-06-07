@@ -1,11 +1,20 @@
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { setGlobalOptions }   = require("firebase-functions/v2");
+const { defineSecret }       = require("firebase-functions/params");
 const { initializeApp }      = require("firebase-admin/app");
 const { Pinecone }           = require("@pinecone-database/pinecone");
 const fetch                  = require("node-fetch");
 
 initializeApp();
 setGlobalOptions({ region: "us-central1" });
+
+// Secrets must be explicitly bound to each function (via the `secrets` option
+// below) for firebase-functions v2 to populate process.env at runtime — they
+// are set with `firebase functions:secrets:set <NAME>`.
+const VOYAGE_API_KEY   = defineSecret("VOYAGE_API_KEY");
+const PINECONE_API_KEY = defineSecret("PINECONE_API_KEY");
+const PINECONE_INDEX   = defineSecret("PINECONE_INDEX");
+const OPENROUTER_API_KEY = defineSecret("OPENROUTER_API_KEY");
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -62,7 +71,9 @@ function assertAuth(context) {
 //   sourceFile?: string
 // }
 
-exports.embedAndUpsert = onCall(async (request) => {
+exports.embedAndUpsert = onCall(
+  { secrets: [VOYAGE_API_KEY, PINECONE_API_KEY, PINECONE_INDEX] },
+  async (request) => {
   const userId = assertAuth(request);
   const { id, content, childId, type, tags = [], sourceFile = null } = request.data;
 
@@ -90,7 +101,8 @@ exports.embedAndUpsert = onCall(async (request) => {
   }]);
 
   return { success: true, id };
-});
+  }
+);
 
 // ── semanticSearch ────────────────────────────────────────────────────────────
 // Embeds a query and searches Pinecone, filtered to the calling user's child
@@ -102,7 +114,9 @@ exports.embedAndUpsert = onCall(async (request) => {
 //   type?:    string  (optional filter by document type)
 // }
 
-exports.semanticSearch = onCall(async (request) => {
+exports.semanticSearch = onCall(
+  { secrets: [VOYAGE_API_KEY, PINECONE_API_KEY, PINECONE_INDEX] },
+  async (request) => {
   const userId = assertAuth(request);
   const { query, childId, topK = 5, type = null } = request.data;
 
@@ -135,14 +149,17 @@ exports.semanticSearch = onCall(async (request) => {
       timestamp:m.metadata.timestamp,
     })),
   };
-});
+  }
+);
 
 // ── deleteVector ──────────────────────────────────────────────────────────────
 // Removes a vector by ID — called when a note or document is deleted
 //
 // data: { id: string }
 
-exports.deleteVector = onCall(async (request) => {
+exports.deleteVector = onCall(
+  { secrets: [PINECONE_API_KEY, PINECONE_INDEX] },
+  async (request) => {
   assertAuth(request);
   const { id } = request.data;
 
@@ -153,7 +170,8 @@ exports.deleteVector = onCall(async (request) => {
 
   await index.deleteOne(id);
   return { success: true };
-});
+  }
+);
 
 // ── aiChat ────────────────────────────────────────────────────────────────────
 // Proxies OpenRouter chat completions so the API key stays server-side.
@@ -164,7 +182,9 @@ exports.deleteVector = onCall(async (request) => {
 //   maxTokens?:   number    — default 1000
 // }
 
-exports.aiChat = onCall(async (request) => {
+exports.aiChat = onCall(
+  { secrets: [OPENROUTER_API_KEY] },
+  async (request) => {
   assertAuth(request);
   const { messages, systemPrompt, maxTokens = 1000 } = request.data;
 
@@ -201,4 +221,5 @@ exports.aiChat = onCall(async (request) => {
 
   const data = await res.json();
   return { content: data.choices[0].message.content };
-});
+  }
+);
