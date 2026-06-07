@@ -23,12 +23,10 @@ export default function Register() {
       });
       if (authErr) throw authErr;
 
-      const { error: profileErr } = await supabase.from("profiles").insert({
-        id:              data.user.id,
-        display_name:    name,
-        unit_preference: "mmol",
-      });
-      if (profileErr) throw profileErr;
+      if (!data.session) {
+        setError("Check your email to confirm your account, then sign in.");
+        return;
+      }
 
       navigate("/");
     } catch (err) {
