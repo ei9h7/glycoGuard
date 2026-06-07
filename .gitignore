@@ -39,6 +39,11 @@ lerna-debug.log*
 firebase-debug.log
 .firebaserc
 
+# Firebase service account keys — NEVER commit these (admin credentials)
+*firebase-adminsdk*.json
+*service-account*.json
+serviceAccountKey.json
+
 # Claude Code internals — not project code
 .agents
 .claude
