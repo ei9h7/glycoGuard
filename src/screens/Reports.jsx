@@ -38,10 +38,21 @@ export default function Reports() {
   const { aiEnabled } = useAI();
   const { patterns, lastUpdated, loading, refreshing, refresh } = usePatterns();
 
-  const [reportMsg, setReportMsg] = useState(false);
+  const [reportMsg, setReportMsg]   = useState(false);
+  const [selectedCats, setSelectedCats] = useState(() => new Set(SECTIONS.map(sec => sec.key)));
+
+  const toggleCategory = (key) => {
+    setSelectedCats(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+    setReportMsg(false);
+  };
 
   const handleCreateReport = () => {
-    exportPatternReport(child, patterns, lastUpdated);
+    const filtered = patterns.filter(p => selectedCats.has(p.category));
+    exportPatternReport(child, filtered, lastUpdated);
     setReportMsg(true);
   };
 
@@ -188,10 +199,30 @@ export default function Reports() {
           {/* ── Medical report placeholder ── */}
           {aiEnabled !== false && !loading && hasAny && (
             <div style={s.reportWrap}>
+              <div style={s.reportSelectLabel}>Include in report:</div>
+              <div style={s.reportSelectRow}>
+                {SECTIONS.map(sec => {
+                  const count = grouped[sec.key]?.length || 0;
+                  if (!count) return null;
+                  const checked = selectedCats.has(sec.key);
+                  return (
+                    <label key={sec.key} style={s.reportCheck}>
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => toggleCategory(sec.key)}
+                        style={{ accentColor: t.pink }}
+                      />
+                      {sec.label} ({count})
+                    </label>
+                  );
+                })}
+              </div>
               <button
                 className="pat-report"
-                style={s.reportBtn}
+                style={{ ...s.reportBtn, opacity: selectedCats.size ? 1 : 0.5 }}
                 onClick={handleCreateReport}
+                disabled={!selectedCats.size}
               >
                 📋 Create report for medical team
               </button>
@@ -368,6 +399,23 @@ const s = {
     flexDirection: "column",
     gap: 10,
     paddingBottom: 8,
+  },
+  reportSelectLabel: {
+    fontSize: 12,
+    color: t.textMuted,
+  },
+  reportSelectRow: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "10px 18px",
+  },
+  reportCheck: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 6,
+    fontSize: 13,
+    color: t.text,
+    cursor: "pointer",
   },
   reportBtn: {
     background: t.bgSurface,

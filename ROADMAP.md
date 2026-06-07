@@ -83,8 +83,8 @@ End of Phase 2 — Open Source Transition
 |Co-parent account linking     |✅ Done      |Auto-matched on child name + DOB + reciprocal email — no invites or manual linking required; coParentMatch.js uses Firestore collectionGroup query; status: pending → connected|
 |Co-parent independent logging |✅ Done      |Mutual consent model per data category (glucose, meals, symptoms, documents, patterns, AI history); real-time data merge via useSharedData.js; co-parent records shown with attribution badge; Sharing Hub screen at /sharing|
 |Pattern report export         |✅ Done      |"Create report for medical team" generates a downloadable PDF (reportExport.js, jsPDF) — plain-language pattern summaries grouped by category with confidence indicators, for sharing with endocrinologists|
-|Medical report export         |📋 Planned   |Selectable data, PDF, formatted for providers|
-|Selectable report recipients  |📋 Planned   |User feedback item                           |
+|Medical report export         |✅ Done      |Selectable data categories (glucose/meal/symptom checkboxes), PDF, formatted for providers — see Reports screen|
+|Selectable report recipients  |📋 Planned   |User feedback item — choosing which provider/contact receives which report; needs decisions on contact storage & delivery (in-app vs email) — deferred for product input|
 |Daycare/caregiver view        |📋 Planned   |Limited read-only access, simplified UI      |
 |Provider portal               |💡 Identified|Read access for medical team                 |
 |AI toggle                     |✅ Done      |Global setting in user preferences (useAI.js); gates AI assistant, meal recommendations, pattern recognition, and meal analysis; opt-in modal for new users; toggle in Settings → AI Features|
