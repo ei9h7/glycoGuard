@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { collection, query, orderBy, limit, onSnapshot, addDoc, serverTimestamp } from "firebase/firestore";
 import { db, auth } from "../firebase";
@@ -7,6 +7,7 @@ import { useChild } from "../hooks/useChild";
 import { useUnits } from "../hooks/useUnits";
 import { useAI } from "../hooks/useAI";
 import { useProactiveAlerts } from "../hooks/useProactiveAlerts";
+import { useNotifications } from "../hooks/useNotifications";
 import { useSharedMeals, useSharedSymptoms } from "../hooks/useSharedData";
 import { t, shadows } from "../styles/tokens";
 import GlycoGuardLogo from "../components/GlycoGuardLogo";
@@ -95,7 +96,9 @@ export default function Home() {
   const { fmt, displayUnit } = useUnits();
   const { aiEnabled } = useAI();
   const { alert: proactiveAlert } = useProactiveAlerts();
+  const { notify } = useNotifications();
   const [now, setNow] = useState(Date.now());
+  const notifiedRef = useRef({ key: null });
   const [showMealModal, setShowMealModal] = useState(false);
   const [showGlucoseModal, setShowGlucoseModal] = useState(false);
 
@@ -270,6 +273,18 @@ export default function Home() {
     : tc === "warn"
     ? { title:"Snack window approaching", body:`${intervalMin - minElapsed} min until ${intervalMin}-minute mark. Start preparing.` }
     : { title:"On track", body:`Next snack in ~${intervalMin - minElapsed} min.` };
+
+  // Browser push notification on feed-timer state transitions
+  useEffect(() => {
+    if (tc === "ok" || !lastMealTime) { notifiedRef.current.key = null; return; }
+    const key = `${lastMealTime}:${tc}`;
+    if (notifiedRef.current.key === key) return;
+    notifiedRef.current.key = key;
+    const msg = tc === "urgent"
+      ? { title: "⚠️ Snack overdue", body: `${child?.name || "Your child"} is past the ${intervalMin}-minute feed window.` }
+      : { title: "Snack window approaching", body: `${intervalMin - minElapsed} min until the ${intervalMin}-minute mark for ${child?.name || "your child"}.` };
+    notify(msg.title, { body: msg.body, tag: "glycoguard-feed-timer" });
+  }, [tc, lastMealTime, intervalMin, minElapsed, child?.name, notify]);
 
   const glucoseMin = child?.glucoseTargetMin || 4.0;
   const glucoseMax = child?.glucoseTargetMax || 6.5;

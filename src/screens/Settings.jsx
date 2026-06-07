@@ -6,6 +6,7 @@ import { useChild } from "../hooks/useChild";
 import { useAuth } from "../hooks/useAuth";
 import { useUnits } from "../hooks/useUnits";
 import { useAI } from "../hooks/useAI";
+import { useNotifications } from "../hooks/useNotifications";
 import { usePreferenceNotes } from "../hooks/usePreferenceNotes";
 import { useDocuments } from "../hooks/useDocuments";
 import { t, shadows } from "../styles/tokens";
@@ -35,6 +36,13 @@ export default function Settings() {
   const { child, childId } = useChild();
   const { unit, setUnit } = useUnits();
   const { aiEnabled, setAIEnabled } = useAI();
+  const {
+    supported: notifSupported,
+    permission: notifPermission,
+    enabled: notifEnabled,
+    enable: enableNotifications,
+    disable: disableNotifications,
+  } = useNotifications();
   const { notes, loading: notesLoading, addNote, removeNote } = usePreferenceNotes();
   const { documents, loading: docsLoading, uploadDocument, removeDocument } = useDocuments();
 
@@ -417,6 +425,38 @@ export default function Settings() {
         </div>
       </div>
 
+      {/* Notifications */}
+      <div style={s.sectionHead}>
+        <span style={s.sectionTitle}>Notifications</span>
+      </div>
+
+      <div style={{ padding: "0 16px" }}>
+        <div style={s.card}>
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+            <span style={{ fontSize: 16, marginTop: 2 }}>🔔</span>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 4 }}>Feed timer reminders</div>
+              <div style={{ fontSize: 12, color: t.textMuted, lineHeight: 1.5 }}>
+                {!notifSupported
+                  ? "Browser notifications aren't supported on this device."
+                  : notifPermission === "denied"
+                  ? "Notifications are blocked for this site — enable them in your browser settings."
+                  : "Get a browser notification when the feed window is approaching or overdue"}
+              </div>
+            </div>
+            {notifSupported && notifPermission !== "denied" && (
+              <button
+                style={{ ...s.toggleTrack, background: notifEnabled ? t.pink : t.border }}
+                onClick={() => (notifEnabled ? disableNotifications() : enableNotifications())}
+                aria-label={notifEnabled ? "Disable feed timer reminders" : "Enable feed timer reminders"}
+              >
+                <div style={{ ...s.toggleThumb, transform: notifEnabled ? "translateX(20px)" : "translateX(2px)" }} />
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
       {/* Account section */}
       <div style={s.sectionHead}>
         <span style={s.sectionTitle}>Account</span>
@@ -445,9 +485,7 @@ export default function Settings() {
 
       <div style={{ padding:"0 16px", display:"flex", flexDirection:"column", gap:10 }}>
         {[
-          ["👨‍👩‍👧", "Co-parent sharing",     "Invite a co-parent and set data permissions"],
           ["➕",    "Add another child",     "Support for multiple children"],
-          ["🔔",    "Notification settings", "Customise alerts and reminders"],
         ].map(([icon, title, desc]) => (
           <div key={title} style={{ ...s.card, opacity:0.5 }}>
             <div style={s.detailRow}>

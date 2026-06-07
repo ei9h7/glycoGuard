@@ -35,7 +35,7 @@
 |Child profile (create/edit)|✅ Done  |Name, DOB, diagnosis, glucose targets, meal interval|
 |Manual glucose logging     |✅ Done  |Fingerprick/manual readings stored in Firestore     |
 |Symptom logging            |✅ Done  |Quick-tap symptoms + note capture                   |
-|Feed timer (functional)    |✅ Done  |Based on last logged meal; push notifications pending|
+|Feed timer (functional)    |✅ Done  |Based on last logged meal; browser push notifications via useNotifications.js, opt-in toggle in Settings|
 |Meal logging (manual)      |✅ Done  |Text description, timestamp, manual macro entry     |
 |Basic glucose history view |✅ Done  |List view available under Glucose history screen    |
 |mmol/L ↔ mg/dL toggle      |✅ Done   |User feedback item — global unit preference, toggle in Settings|
