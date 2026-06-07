@@ -1,25 +1,31 @@
 import { useState, useEffect } from "react";
-import { collection, query, orderBy, onSnapshot, getDoc, doc } from "firebase/firestore";
-import { db, auth } from "../firebase";
+import { supabase } from "../supabase";
+import { mapGlucoseReading, mapMealLog, mapSymptomEvent } from "../services/dbMappers";
 import { useChild } from "./useChild";
+import { useAuth } from "./useAuth";
+
+const TABLE_MAPPERS = {
+  glucose_readings: mapGlucoseReading,
+  meal_logs:        mapMealLog,
+  symptom_events:   mapSymptomEvent,
+};
 
 /*
  * useSharedCollection — internal hook.
  *
- * Sets up two real-time listeners: one for the current user's data, one for the
- * co-parent's data. The co-parent listener is only active when:
- *   - coParentStatus === 'connected' (both sides ran coParentMatch successfully)
+ * Fetches + subscribes to one's own rows for {table}, plus the co-parent's rows
+ * when:
+ *   - coParentStatus === 'connected'
  *   - child.sharing[category] === true   (current user has consented)
  *   - coParentChild.sharing[category] === true  (co-parent has consented)
  *
- * Falls back gracefully to current-user-only data when no co-parent connection
- * exists or the category is not mutually consented.
- *
  * Each record is tagged with _from: 'mine' | 'coparent'.
- * Co-parent doc IDs are prefixed with 'cp_' to avoid collisions with own IDs.
+ * Co-parent row IDs are prefixed with 'cp_' to avoid collisions with own IDs.
  */
-function useSharedCollection(collectionName, category) {
+function useSharedCollection(table, category) {
+  const { user } = useAuth();
   const { child, childId } = useChild();
+  const mapRow = TABLE_MAPPERS[table];
 
   const [myData,    setMyData]    = useState([]);
   const [coData,    setCoData]    = useState([]);
@@ -32,57 +38,64 @@ function useSharedCollection(collectionName, category) {
   const active    = connected && myOn && coOn;
 
   // Fetch the co-parent's sharing consent map once per connection state change.
-  // A full listener isn't warranted here — consent changes are infrequent and
-  // the Sharing screen handles real-time display of that state.
   useEffect(() => {
     if (!connected || !child?.coParentUid || !child?.coParentChildId) {
       setCoSharing(null);
       return;
     }
-    getDoc(doc(db, "users", child.coParentUid, "children", child.coParentChildId))
-      .then(snap => setCoSharing(snap.exists() ? (snap.data().sharing ?? {}) : {}))
+    supabase.from("children").select("sharing").eq("id", child.coParentChildId).maybeSingle()
+      .then(({ data }) => setCoSharing(data?.sharing ?? {}))
       .catch(() => setCoSharing({}));
   }, [connected, child?.coParentUid, child?.coParentChildId]);
 
-  // Real-time listener for the current user's collection.
+  // Own rows: fetch + realtime subscription.
   useEffect(() => {
-    const uid = auth.currentUser?.uid;
-    if (!uid || !childId) return;
-    const q = query(
-      collection(db, "users", uid, "children", childId, collectionName),
-      orderBy("timestamp", "desc")
-    );
-    const unsub = onSnapshot(
-      q,
-      snap => {
-        setMyData(snap.docs.map(d => ({ id: d.id, _from: "mine", ...d.data() })));
-        setMyLoading(false);
-      },
-      () => setMyLoading(false)
-    );
-    return unsub;
-  }, [childId, collectionName]);
+    if (!user || !childId) return;
 
-  // Real-time listener for the co-parent's collection.
-  // Only runs when both parents have consented for this category.
+    const load = async () => {
+      const { data, error } = await supabase
+        .from(table)
+        .select("*")
+        .eq("child_id", childId)
+        .order("timestamp", { ascending: false });
+      if (!error) setMyData((data || []).map(r => ({ id: r.id, _from: "mine", ...mapRow(r) })));
+      setMyLoading(false);
+    };
+    load();
+
+    const channel = supabase
+      .channel(`${table}-mine-${childId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table, filter: `child_id=eq.${childId}` }, load)
+      .subscribe();
+
+    return () => supabase.removeChannel(channel);
+  }, [user, childId, table]);
+
+  // Co-parent rows: only when both sides have mutually consented for this category.
   useEffect(() => {
-    if (!active || !child?.coParentUid || !child?.coParentChildId) {
+    if (!active || !child?.coParentChildId) {
       setCoData([]);
       return;
     }
-    const q = query(
-      collection(db, "users", child.coParentUid, "children", child.coParentChildId, collectionName),
-      orderBy("timestamp", "desc")
-    );
-    const unsub = onSnapshot(
-      q,
-      snap => {
-        setCoData(snap.docs.map(d => ({ id: `cp_${d.id}`, _from: "coparent", ...d.data() })));
-      },
-      () => setCoData([])
-    );
-    return unsub;
-  }, [active, child?.coParentUid, child?.coParentChildId, collectionName]);
+    const coChildId = child.coParentChildId;
+
+    const load = async () => {
+      const { data, error } = await supabase
+        .from(table)
+        .select("*")
+        .eq("child_id", coChildId)
+        .order("timestamp", { ascending: false });
+      if (!error) setCoData((data || []).map(r => ({ id: `cp_${r.id}`, _from: "coparent", ...mapRow(r) })));
+    };
+    load();
+
+    const channel = supabase
+      .channel(`${table}-coparent-${coChildId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table, filter: `child_id=eq.${coChildId}` }, load)
+      .subscribe();
+
+    return () => supabase.removeChannel(channel);
+  }, [active, child?.coParentChildId, table]);
 
   const merged = [...myData, ...coData].sort((a, b) => {
     const at = a.timestamp?.toDate?.()?.getTime() ?? 0;
@@ -94,16 +107,16 @@ function useSharedCollection(collectionName, category) {
 }
 
 export function useSharedGlucose() {
-  const { data, loading } = useSharedCollection("glucoseReadings", "glucose");
+  const { data, loading } = useSharedCollection("glucose_readings", "glucose");
   return { readings: data, loading };
 }
 
 export function useSharedMeals() {
-  const { data, loading } = useSharedCollection("mealLogs", "meals");
+  const { data, loading } = useSharedCollection("meal_logs", "meals");
   return { meals: data, loading };
 }
 
 export function useSharedSymptoms() {
-  const { data, loading } = useSharedCollection("symptomEvents", "symptoms");
+  const { data, loading } = useSharedCollection("symptom_events", "symptoms");
   return { symptoms: data, loading };
 }

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { collection, query, limit, onSnapshot } from "firebase/firestore";
-import { db } from "../firebase";
+import { supabase } from "../supabase";
+import { mapChild } from "../services/dbMappers";
 import { useAuth } from "./useAuth";
 
 export function useChild() {
@@ -11,32 +11,34 @@ export function useChild() {
 
   useEffect(() => {
     if (authLoading) return;
-    if (!user) { 
+    if (!user) {
       setChild(null);
       setChildId(null);
-      setLoading(false); 
-      return; 
+      setLoading(false);
+      return;
     }
     setLoading(true);
-    const q = query(
-      collection(db, "users", user.uid, "children"),
-      limit(1)
-    );
-    const unsub = onSnapshot(q, (snap) => {
-      if (!snap.empty) {
-        const doc = snap.docs[0];
-        setChild({ id: doc.id, ...doc.data() });
-        setChildId(doc.id);
-      } else {
-        setChild(null);
-        setChildId(null);
-      }
+
+    const load = async () => {
+      const { data, error } = await supabase
+        .from("children")
+        .select("*")
+        .eq("owner_id", user.uid)
+        .limit(1)
+        .maybeSingle();
+      if (error) console.error("useChild fetch error:", error);
+      setChild(mapChild(data));
+      setChildId(data?.id ?? null);
       setLoading(false);
-    }, (error) => {
-      console.error("useChild snapshot error:", error);
-      setLoading(false);
-    });
-    return unsub;
+    };
+    load();
+
+    const channel = supabase
+      .channel(`children-owner-${user.uid}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "children", filter: `owner_id=eq.${user.uid}` }, load)
+      .subscribe();
+
+    return () => supabase.removeChannel(channel);
   }, [user, authLoading]);
 
   return { child, childId, loading };

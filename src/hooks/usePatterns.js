@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { doc, onSnapshot } from "firebase/firestore";
-import { db } from "../firebase";
+import { supabase } from "../supabase";
 import { useAuth } from "./useAuth";
 import { useChild } from "./useChild";
 import { generatePatterns } from "../services/patternEngine";
@@ -17,28 +16,34 @@ export function usePatterns() {
   const [refreshing,  setRefreshing]  = useState(false);
   const didAutoRefresh = useRef(false);
 
-  // Live listener on patternSummary/latest
+  // Live subscription on pattern_summaries row for this child
   useEffect(() => {
     if (!user || !childId) { setLoading(false); return; }
 
-    const ref = doc(db, "users", user.uid, "children", childId, "patternSummary", "latest");
-    const unsub = onSnapshot(ref, (snap) => {
-      if (snap.exists()) {
-        const data = snap.data();
-        setPatterns(data.patterns || []);
-        const ts = data.generatedAt?.toDate ? data.generatedAt.toDate() : null;
-        setLastUpdated(ts);
+    const apply = (row) => {
+      if (row) {
+        setPatterns(row.patterns || []);
+        setLastUpdated(row.generated_at ? new Date(row.generated_at) : null);
       } else {
         setPatterns([]);
         setLastUpdated(null);
       }
       setLoading(false);
-    }, (err) => {
-      console.error("usePatterns snapshot error:", err);
-      setLoading(false);
-    });
+    };
 
-    return unsub;
+    supabase.from("pattern_summaries").select("*").eq("child_id", childId).maybeSingle()
+      .then(({ data, error }) => {
+        if (error) console.error("usePatterns fetch error:", error);
+        apply(data);
+      });
+
+    const channel = supabase
+      .channel(`pattern-summary-${childId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "pattern_summaries", filter: `child_id=eq.${childId}` },
+        (payload) => apply(payload.new))
+      .subscribe();
+
+    return () => supabase.removeChannel(channel);
   }, [user, childId]);
 
   // Auto-refresh once after initial load if data is stale or missing

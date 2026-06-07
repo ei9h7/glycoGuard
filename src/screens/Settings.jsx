@@ -1,7 +1,5 @@
 import { useState, useRef } from "react";
-import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
-import { signOut } from "firebase/auth";
-import { db, auth } from "../firebase";
+import { supabase } from "../supabase";
 import { useChild } from "../hooks/useChild";
 import { useAuth } from "../hooks/useAuth";
 import { useUnits } from "../hooks/useUnits";
@@ -86,19 +84,20 @@ export default function Settings() {
     if (!form.name.trim()) { setError("Name is required."); return; }
     setSaving(true); setError("");
     try {
-      const userId = auth.currentUser.uid;
+      const userId = user.uid;
       const coParentEmail = form.coParentEmail.toLowerCase().trim();
-      await updateDoc(doc(db, "users", userId, "children", childId), {
-        name:                form.name.trim(),
-        dob:                 form.dob,
-        diagnosis:           form.diagnosis,
-        glucoseTargetMin:    parseFloat(form.glucoseMin),
-        glucoseTargetMax:    parseFloat(form.glucoseMax),
-        mealIntervalMinutes: parseInt(form.mealInterval),
-        cgmDevice:           form.cgmDevice,
-        coParentEmail,
-        updatedAt:           serverTimestamp(),
-      });
+      const { error: updateErr } = await supabase.from("children").update({
+        name:                  form.name.trim(),
+        dob:                   form.dob,
+        diagnosis:             form.diagnosis,
+        glucose_target_min:    parseFloat(form.glucoseMin),
+        glucose_target_max:    parseFloat(form.glucoseMax),
+        meal_interval_minutes: parseInt(form.mealInterval),
+        cgm_device:            form.cgmDevice,
+        co_parent_email:       coParentEmail || null,
+        updated_at:            new Date().toISOString(),
+      }).eq("id", childId);
+      if (updateErr) throw updateErr;
       runCoParentMatch(userId, childId, { ...child, coParentEmail }).catch(console.error);
       setEditing(false);
       setForm(null);
@@ -113,7 +112,7 @@ export default function Settings() {
   };
 
   const handleSignOut = async () => {
-    await signOut(auth);
+    await supabase.auth.signOut();
   };
 
   const handleFileChange = async (type, e) => {

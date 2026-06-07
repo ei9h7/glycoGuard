@@ -1,6 +1,5 @@
 import { useState } from "react";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
-import { db, auth } from "../../firebase";
+import { supabase } from "../../supabase";
 import { useNavigate } from "react-router-dom";
 import { t } from "../../styles/tokens";
 import GlycoGuardLogo from "../../components/GlycoGuardLogo";
@@ -48,24 +47,34 @@ export default function ChildSetup() {
   e.preventDefault();
   setError(""); setLoading(true);
   try {
-    const userId = auth.currentUser.uid;
-    const childData = {
-      name:                form.name.trim(),
-      dob:                 form.dob,
-      diagnosis:           form.diagnosis === "Other / Under Investigation"
-                             ? form.diagnosisOther
-                             : form.diagnosis,
-      glucoseTargetMin:    parseFloat(form.glucoseMin),
-      glucoseTargetMax:    parseFloat(form.glucoseMax),
-      mealIntervalMinutes: parseInt(form.mealInterval),
-      cgmDevice:           form.cgmDevice,
-      coParentEmail:       form.coParentEmail.toLowerCase().trim(),
-      createdAt:           serverTimestamp(),
-      updatedAt:           serverTimestamp(),
+    const { data: { user } } = await supabase.auth.getUser();
+    const userId = user.id;
+    const insertRow = {
+      owner_id:              userId,
+      name:                  form.name.trim(),
+      dob:                   form.dob,
+      diagnosis:             form.diagnosis === "Other / Under Investigation"
+                               ? form.diagnosisOther
+                               : form.diagnosis,
+      glucose_target_min:    parseFloat(form.glucoseMin),
+      glucose_target_max:    parseFloat(form.glucoseMax),
+      meal_interval_minutes: parseInt(form.mealInterval),
+      cgm_device:            form.cgmDevice,
+      co_parent_email:       form.coParentEmail.toLowerCase().trim() || null,
     };
-    const childRef = await addDoc(collection(db, "users", userId, "children"), childData);
-    runCoParentMatch(userId, childRef.id, childData).catch(console.error);
-    // Force a full page reload to avoid race condition with onSnapshot
+    const { data: child, error: insertErr } = await supabase
+      .from("children")
+      .insert(insertRow)
+      .select()
+      .single();
+    if (insertErr) throw insertErr;
+
+    runCoParentMatch(userId, child.id, {
+      name: child.name,
+      dob: child.dob,
+      coParentEmail: child.co_parent_email,
+    }).catch(console.error);
+    // Force a full page reload to avoid race condition with the realtime subscription
     window.location.href = "/";
   } catch (err) {
     console.error(err);
