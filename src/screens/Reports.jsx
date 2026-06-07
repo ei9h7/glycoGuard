@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useChild } from "../hooks/useChild";
 import { usePatterns } from "../hooks/usePatterns";
 import { useAI } from "../hooks/useAI";
+import { exportPatternReport } from "../services/reportExport";
 import { t, shadows } from "../styles/tokens";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -38,6 +39,11 @@ export default function Reports() {
   const { patterns, lastUpdated, loading, refreshing, refresh } = usePatterns();
 
   const [reportMsg, setReportMsg] = useState(false);
+
+  const handleCreateReport = () => {
+    exportPatternReport(child, patterns, lastUpdated);
+    setReportMsg(true);
+  };
 
   const handleAskAI = (pattern) => {
     navigate("/ai", {
@@ -185,13 +191,13 @@ export default function Reports() {
               <button
                 className="pat-report"
                 style={s.reportBtn}
-                onClick={() => setReportMsg(true)}
+                onClick={handleCreateReport}
               >
                 📋 Create report for medical team
               </button>
               {reportMsg && (
                 <div style={s.reportMsg}>
-                  Medical report export is coming in Phase 3. It will generate a formatted PDF you can share directly with your endocrinologist.
+                  PDF generated and downloaded — share it directly with your endocrinologist or care team.
                 </div>
               )}
             </div>

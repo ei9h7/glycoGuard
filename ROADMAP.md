@@ -82,12 +82,12 @@ End of Phase 2 — Open Source Transition
 |Dexcom integration            |📋 Planned   |Dexcom developer API                         |
 |Co-parent account linking     |✅ Done      |Auto-matched on child name + DOB + reciprocal email — no invites or manual linking required; coParentMatch.js uses Firestore collectionGroup query; status: pending → connected|
 |Co-parent independent logging |✅ Done      |Mutual consent model per data category (glucose, meals, symptoms, documents, patterns, AI history); real-time data merge via useSharedData.js; co-parent records shown with attribution badge; Sharing Hub screen at /sharing|
-|Pattern report export         |📋 Planned   |"Create report for medical team" formatted PDF export of pattern summaries, plain language interpretation of glucose trends and meal correlations for endocrinologists|
+|Pattern report export         |✅ Done      |"Create report for medical team" generates a downloadable PDF (reportExport.js, jsPDF) — plain-language pattern summaries grouped by category with confidence indicators, for sharing with endocrinologists|
 |Medical report export         |📋 Planned   |Selectable data, PDF, formatted for providers|
 |Selectable report recipients  |📋 Planned   |User feedback item                           |
 |Daycare/caregiver view        |📋 Planned   |Limited read-only access, simplified UI      |
 |Provider portal               |💡 Identified|Read access for medical team                 |
-|AI toggle                     |📋 Planned   |Global setting in user preferences to enable/disable all AI features (meal recommendations, pattern recognition, AI assistant, meal photo analysis). App fully functional as a logging and tracking tool without AI. Default off for new users with a clear opt-in prompt explaining what AI features do and how data is used.|
+|AI toggle                     |✅ Done      |Global setting in user preferences (useAI.js); gates AI assistant, meal recommendations, pattern recognition, and meal analysis; opt-in modal for new users; toggle in Settings → AI Features|
 |Health platform sync          |📋 Planned   |Apple Health (iOS) and Google Health Connect (Android) integration to read and write glucose readings, meals, and activity data. Allows GlycoGuard to consolidate data from other health apps and contribute back to the parent's health platform. Requires native app (Phase 5) for full functionality; web-based read access may be possible earlier via Health Connect REST API.|
 
 -----
