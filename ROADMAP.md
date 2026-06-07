@@ -68,7 +68,7 @@ End of Phase 2 — Open Source Transition
 |Design system rebrand        |✅ Done     |Full token system in src/styles/tokens.js; all 12 components updated; pediatric palette: near-white background, hot pink brand (#FF5DA8), electric sky blue (#00BFFF), vivid mint (#00D68F); DESIGN_SYSTEM.md added with clinical colour rules|
 |AI pattern recognition       |✅ Done     |Pattern engine generates insights from 30 days of glucose, meal, and symptom data; stored in Firestore + Pinecone; auto-refreshes if stale >6 hours; manual refresh available; Reports screen grouped by category with confidence indicators|
 |Meal photo analysis          |📋 Planned  |Before/after photos, portion estimation via Claude vision API                                      |
-|Proactive alerts             |📋 Planned  |Predict reactive windows before they happen                                                        |
+|Proactive alerts             |✅ Done     |useProactiveAlerts.js — surfaces a Home screen banner when current time is within/approaching a recurring low-glucose window detected by the pattern engine (structured riskHours meta added to pattern data)|
 
 -----
 

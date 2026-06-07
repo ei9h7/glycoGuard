@@ -118,6 +118,7 @@ async function _run(userId, childId, child) {
         title:       "Recurring Low Glucose Windows",
         description: `Low glucose (below ${targetMin} mmol/L) occurs repeatedly at: ${listed.join("; ")}. Consider adjusting meal timing or adding a snack ahead of these windows.`,
         dataPoints:  problematic.reduce((a, p) => a + p.count, 0),
+        meta:        { riskHours: problematic.slice(0, 3).map(p => ({ hour: p.hour, pct: p.pct })) },
         generatedAt,
       });
     }

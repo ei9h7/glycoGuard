@@ -6,6 +6,7 @@ import { upsertVector } from "../services/vectorStore";
 import { useChild } from "../hooks/useChild";
 import { useUnits } from "../hooks/useUnits";
 import { useAI } from "../hooks/useAI";
+import { useProactiveAlerts } from "../hooks/useProactiveAlerts";
 import { useSharedMeals, useSharedSymptoms } from "../hooks/useSharedData";
 import { t, shadows } from "../styles/tokens";
 import GlycoGuardLogo from "../components/GlycoGuardLogo";
@@ -93,6 +94,7 @@ export default function Home() {
   const { child, childId } = useChild();
   const { fmt, displayUnit } = useUnits();
   const { aiEnabled } = useAI();
+  const { alert: proactiveAlert } = useProactiveAlerts();
   const [now, setNow] = useState(Date.now());
   const [showMealModal, setShowMealModal] = useState(false);
   const [showGlucoseModal, setShowGlucoseModal] = useState(false);
@@ -305,6 +307,17 @@ export default function Home() {
             {alertType==="ok" ? "+ Meal" : "Log Meal"}
           </button>
         </div>
+
+        {/* Proactive alert — predicted reactive window */}
+        {aiEnabled !== false && proactiveAlert && (
+          <div style={{ ...s.alertBanner, ...s.alertWarning }}>
+            <div style={{ fontSize:22, flexShrink:0 }}>🔮</div>
+            <div style={{ flex:1 }}>
+              <div style={s.alertTitle}>{proactiveAlert.title}</div>
+              <div style={s.alertBody}>{proactiveAlert.body}</div>
+            </div>
+          </div>
+        )}
 
         {/* Live Status */}
         <div style={s.sectionHead}>
