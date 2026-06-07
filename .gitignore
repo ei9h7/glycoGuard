@@ -37,6 +37,8 @@ lerna-debug.log*
 # Firebase
 .firebase
 firebase-debug.log
+firestore-debug.log
+ui-debug.log
 .firebaserc
 
 # Firebase service account keys — NEVER commit these (admin credentials)
