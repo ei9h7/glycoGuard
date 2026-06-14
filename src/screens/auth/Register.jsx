@@ -30,9 +30,10 @@ export default function Register() {
 
       navigate("/");
     } catch (err) {
+      console.error("Signup error:", err);
       setError(err.message?.toLowerCase().includes("already registered") || err.message?.toLowerCase().includes("already exists")
         ? "An account with this email already exists."
-        : "Something went wrong. Please try again.");
+        : `Something went wrong: ${err.message || err}`);
     } finally {
       setLoading(false);
     }
