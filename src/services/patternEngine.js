@@ -1,7 +1,5 @@
-import {
-  collection, query, where, orderBy, getDocs, setDoc, doc, Timestamp,
-} from "firebase/firestore";
-import { db } from "../firebase";
+import { supabase } from "../supabase";
+import { mapGlucoseReading, mapMealLog, mapSymptomEvent } from "./dbMappers";
 import { upsertVector } from "./vectorStore";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -45,29 +43,17 @@ async function _run(userId, childId, child) {
 
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - 30);
-  const cutoffTs = Timestamp.fromDate(cutoff);
+  const cutoffIso = cutoff.toISOString();
 
-  const [glucSnap, mealSnap, sympSnap] = await Promise.all([
-    getDocs(query(
-      collection(db, "users", userId, "children", childId, "glucoseReadings"),
-      where("timestamp", ">=", cutoffTs),
-      orderBy("timestamp", "asc")
-    )),
-    getDocs(query(
-      collection(db, "users", userId, "children", childId, "mealLogs"),
-      where("timestamp", ">=", cutoffTs),
-      orderBy("timestamp", "asc")
-    )),
-    getDocs(query(
-      collection(db, "users", userId, "children", childId, "symptomEvents"),
-      where("timestamp", ">=", cutoffTs),
-      orderBy("timestamp", "asc")
-    )),
+  const [glucRes, mealRes, sympRes] = await Promise.all([
+    supabase.from("glucose_readings").select("*").eq("child_id", childId).gte("timestamp", cutoffIso).order("timestamp", { ascending: true }),
+    supabase.from("meal_logs").select("*").eq("child_id", childId).gte("timestamp", cutoffIso).order("timestamp", { ascending: true }),
+    supabase.from("symptom_events").select("*").eq("child_id", childId).gte("timestamp", cutoffIso).order("timestamp", { ascending: true }),
   ]);
 
-  const readings = glucSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-  const meals    = mealSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-  const symptoms = sympSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+  const readings = (glucRes.data || []).map(r => ({ id: r.id, ...mapGlucoseReading(r) }));
+  const meals    = (mealRes.data || []).map(r => ({ id: r.id, ...mapMealLog(r) }));
+  const symptoms = (sympRes.data || []).map(r => ({ id: r.id, ...mapSymptomEvent(r) }));
 
   const generatedAt = new Date().toISOString();
   const patterns = [];
@@ -118,6 +104,7 @@ async function _run(userId, childId, child) {
         title:       "Recurring Low Glucose Windows",
         description: `Low glucose (below ${targetMin} mmol/L) occurs repeatedly at: ${listed.join("; ")}. Consider adjusting meal timing or adding a snack ahead of these windows.`,
         dataPoints:  problematic.reduce((a, p) => a + p.count, 0),
+        meta:        { riskHours: problematic.slice(0, 3).map(p => ({ hour: p.hour, pct: p.pct })) },
         generatedAt,
       });
     }
@@ -288,15 +275,16 @@ async function _run(userId, childId, child) {
     if (i < patterns.length - 1) await new Promise(r => setTimeout(r, 500));
   }
 
-  // ── Write to Firestore ────────────────────────────────────────────────────
+  // ── Write to Postgres ─────────────────────────────────────────────────────
 
   try {
-    await setDoc(
-      doc(db, "users", userId, "children", childId, "patternSummary", "latest"),
-      { patterns, generatedAt: new Date() }
-    );
+    await supabase.from("pattern_summaries").upsert({
+      child_id:     childId,
+      patterns,
+      generated_at: new Date().toISOString(),
+    });
   } catch (e) {
-    console.error("Pattern Firestore write failed:", e);
+    console.error("Pattern summary write failed:", e);
   }
 
   return patterns;

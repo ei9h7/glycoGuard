@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { doc, setDoc, onSnapshot, arrayUnion } from "firebase/firestore";
-import { db, auth } from "../firebase";
+import { supabase } from "../supabase";
 import { useChild } from "../hooks/useChild";
 import { usePatterns } from "../hooks/usePatterns";
 import { useAI } from "../hooks/useAI";
@@ -256,12 +255,25 @@ export default function Meals() {
     setNewMealInput("");
     setGroceryItems([]);
     setInstacartMsg("");
-    const userId = auth.currentUser.uid;
-    const ref = doc(db, "users", userId, "children", childId, "mealPlan", getISOWeekId(weekOffset));
-    return onSnapshot(ref, snap => {
-      setWeekPlan(snap.exists() ? (snap.data().days || {}) : {});
-    });
+    const wkId = getISOWeekId(weekOffset);
+    const load = async () => {
+      const { data } = await supabase.from("meal_plans").select("days").eq("child_id", childId).eq("week_id", wkId).maybeSingle();
+      setWeekPlan(data?.days || {});
+    };
+    load();
+    const ch = supabase.channel(`meal-plan-${childId}-${wkId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "meal_plans", filter: `child_id=eq.${childId}` }, load)
+      .subscribe();
+    return () => supabase.removeChannel(ch);
   }, [child, childId, weekOffset]);
+
+  // Appends `entry` to days[dayKey] for the given week, creating the row if needed.
+  const appendToMealPlan = async (wkId, dayKey, entry) => {
+    const { data: existing } = await supabase.from("meal_plans").select("days").eq("child_id", childId).eq("week_id", wkId).maybeSingle();
+    const days = { ...(existing?.days || {}) };
+    days[dayKey] = [...(days[dayKey] || []), entry];
+    await supabase.from("meal_plans").upsert({ child_id: childId, week_id: wkId, days, updated_at: new Date().toISOString() });
+  };
 
   // ── Generate recommendations once after patterns + child load ───────────────
   useEffect(() => {
@@ -288,32 +300,24 @@ export default function Meals() {
 
   const addToMealPlan = async (rec) => {
     if (!child || !childId) return;
-    const userId    = auth.currentUser.uid;
     const targetKey = String(activeDay ?? getTodayDayIndex());
     const curWeekId = getISOWeekId(activeDay !== null ? weekOffset : 0);
-    const weekRef   = doc(db, "users", userId, "children", childId, "mealPlan", curWeekId);
-    await setDoc(weekRef, { days: { [targetKey]: arrayUnion({ name: rec.name, addedAt: new Date().toISOString() }) } }, { merge: true });
+    await appendToMealPlan(curWeekId, targetKey, { name: rec.name, addedAt: new Date().toISOString() });
   };
 
   const addMealToDay = async (dayIndex, mealName) => {
     if (!child || !childId || !mealName.trim()) return;
-    const userId   = auth.currentUser.uid;
-    const ref      = doc(db, "users", userId, "children", childId, "mealPlan", weekId);
-    const dayKey   = String(dayIndex);
-    const newEntry = { name: mealName.trim(), addedAt: new Date().toISOString() };
-    await setDoc(ref, { days: { [dayKey]: arrayUnion(newEntry) } }, { merge: true });
+    await appendToMealPlan(weekId, String(dayIndex), { name: mealName.trim(), addedAt: new Date().toISOString() });
   };
 
   const removeMealFromDay = async (dayIndex, mealIndex) => {
     if (!child || !childId) return;
-    const userId  = auth.currentUser.uid;
-    const ref     = doc(db, "users", userId, "children", childId, "mealPlan", weekId);
     const dayKey  = String(dayIndex);
     const updated = {
       ...weekPlan,
       [dayKey]: (weekPlan[dayKey] || []).filter((_, i) => i !== mealIndex),
     };
-    await setDoc(ref, { days: updated });
+    await supabase.from("meal_plans").upsert({ child_id: childId, week_id: weekId, days: updated, updated_at: new Date().toISOString() });
   };
 
   const handleGenerateGrocery = () => {

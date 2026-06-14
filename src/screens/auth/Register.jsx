@@ -1,7 +1,5 @@
 import { useState } from "react";
-import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
-import { doc, setDoc, serverTimestamp } from "firebase/firestore";
-import { auth, db } from "../../firebase";
+import { supabase } from "../../supabase";
 import { useNavigate, Link } from "react-router-dom";
 import { t } from "../../styles/tokens";
 import GlycoGuardLogo from "../../components/GlycoGuardLogo";
@@ -18,19 +16,24 @@ export default function Register() {
     e.preventDefault();
     setError(""); setLoading(true);
     try {
-      const { user } = await createUserWithEmailAndPassword(auth, email, password);
-      await updateProfile(user, { displayName: name });
-      await setDoc(doc(db, "users", user.uid), {
-        displayName:    name,
-        email:          email,
-        unitPreference: "mmol",
-        createdAt:      serverTimestamp(),
+      const { data, error: authErr } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { data: { full_name: name } },
       });
+      if (authErr) throw authErr;
+
+      if (!data.session) {
+        setError("Check your email to confirm your account, then sign in.");
+        return;
+      }
+
       navigate("/");
     } catch (err) {
-      setError(err.message.includes("email-already-in-use")
+      console.error("Signup error:", err);
+      setError(err.message?.toLowerCase().includes("already registered") || err.message?.toLowerCase().includes("already exists")
         ? "An account with this email already exists."
-        : "Something went wrong. Please try again.");
+        : `Something went wrong: ${err.message || err}`);
     } finally {
       setLoading(false);
     }

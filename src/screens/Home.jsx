@@ -1,11 +1,14 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { collection, query, orderBy, limit, onSnapshot, addDoc, serverTimestamp } from "firebase/firestore";
-import { db, auth } from "../firebase";
+import { supabase } from "../supabase";
+import { mapGlucoseReading, mapMealLog } from "../services/dbMappers";
 import { upsertVector } from "../services/vectorStore";
 import { useChild } from "../hooks/useChild";
 import { useUnits } from "../hooks/useUnits";
+import { useAuth } from "../hooks/useAuth";
 import { useAI } from "../hooks/useAI";
+import { useProactiveAlerts } from "../hooks/useProactiveAlerts";
+import { useNotifications } from "../hooks/useNotifications";
 import { useSharedMeals, useSharedSymptoms } from "../hooks/useSharedData";
 import { t, shadows } from "../styles/tokens";
 import GlycoGuardLogo from "../components/GlycoGuardLogo";
@@ -90,10 +93,14 @@ function GlucoseRing({ value, min = 4.0, max = 6.5, fmt, displayUnit }) {
 
 export default function Home() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { child, childId } = useChild();
   const { fmt, displayUnit } = useUnits();
   const { aiEnabled } = useAI();
+  const { alert: proactiveAlert } = useProactiveAlerts();
+  const { notify } = useNotifications();
   const [now, setNow] = useState(Date.now());
+  const notifiedRef = useRef({ key: null });
   const [showMealModal, setShowMealModal] = useState(false);
   const [showGlucoseModal, setShowGlucoseModal] = useState(false);
 
@@ -119,39 +126,45 @@ export default function Home() {
 
   useEffect(() => {
     if (!child || !childId) return;
-    const userId = auth.currentUser.uid;
-    const q = query(
-      collection(db, "users", userId, "children", childId, "mealLogs"),
-      orderBy("timestamp", "desc"), limit(1)
-    );
-    return onSnapshot(q, snap => {
-      setLastMeal(snap.empty ? null : { id:snap.docs[0].id, ...snap.docs[0].data() });
-    });
+
+    const loadLastMeal = async () => {
+      const { data } = await supabase.from("meal_logs").select("*").eq("child_id", childId).order("timestamp", { ascending: false }).limit(1);
+      setLastMeal(data?.length ? { id: data[0].id, ...mapMealLog(data[0]) } : null);
+    };
+    loadLastMeal();
+    const ch = supabase.channel(`home-last-meal-${childId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "meal_logs", filter: `child_id=eq.${childId}` }, loadLastMeal)
+      .subscribe();
+    return () => supabase.removeChannel(ch);
   }, [child, childId]);
 
   useEffect(() => {
     if (!child || !childId) return;
-    const userId = auth.currentUser.uid;
-    const q = query(
-      collection(db, "users", userId, "children", childId, "glucoseReadings"),
-      orderBy("timestamp", "desc"), limit(1)
-    );
-    return onSnapshot(q, snap => {
-      setLastGlucose(snap.empty ? null : { id:snap.docs[0].id, ...snap.docs[0].data() });
-    });
+
+    const loadLastGlucose = async () => {
+      const { data } = await supabase.from("glucose_readings").select("*").eq("child_id", childId).order("timestamp", { ascending: false }).limit(1);
+      setLastGlucose(data?.length ? { id: data[0].id, ...mapGlucoseReading(data[0]) } : null);
+    };
+    loadLastGlucose();
+    const ch = supabase.channel(`home-last-glucose-${childId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "glucose_readings", filter: `child_id=eq.${childId}` }, loadLastGlucose)
+      .subscribe();
+    return () => supabase.removeChannel(ch);
   }, [child, childId]);
 
   // Glucose timeline entries — current user only (live status uses its own listener above)
   useEffect(() => {
     if (!child || !childId) return;
-    const userId = auth.currentUser.uid;
-    const q = query(
-      collection(db, "users", userId, "children", childId, "glucoseReadings"),
-      orderBy("timestamp", "desc"), limit(10)
-    );
-    return onSnapshot(q, snap => {
-      setGlucoseItems(snap.docs.map(d => ({ id:d.id, type:"glucose", _from:"mine", ...d.data() })));
-    });
+
+    const loadGlucoseItems = async () => {
+      const { data } = await supabase.from("glucose_readings").select("*").eq("child_id", childId).order("timestamp", { ascending: false }).limit(10);
+      setGlucoseItems((data || []).map(r => ({ id: r.id, type: "glucose", _from: "mine", ...mapGlucoseReading(r) })));
+    };
+    loadGlucoseItems();
+    const ch = supabase.channel(`home-glucose-items-${childId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "glucose_readings", filter: `child_id=eq.${childId}` }, loadGlucoseItems)
+      .subscribe();
+    return () => supabase.removeChannel(ch);
   }, [child, childId]);
 
   const timeline = [
@@ -168,22 +181,24 @@ export default function Home() {
     if (activeSymptoms.length === 0 && !obsText.trim()) return;
     setSavingSymptoms(true);
     try {
-      const userId = auth.currentUser.uid;
-      const ref = await addDoc(
-        collection(db, "users", userId, "children", childId, "symptomEvents"),
-        {
-          timestamp:        serverTimestamp(),
-          loggedBy:         userId,
-          quickTapSymptoms: activeSymptoms,
-          observationText:  obsText.trim(),
-          glucoseAtTime:    lastGlucose?.value || null,
-        }
-      );
+      const userId = user.uid;
+      const { data: row, error } = await supabase
+        .from("symptom_events")
+        .insert({
+          child_id:           childId,
+          logged_by:          userId,
+          quick_tap_symptoms: activeSymptoms,
+          observation_text:   obsText.trim(),
+          glucose_at_time:    lastGlucose?.value || null,
+        })
+        .select()
+        .single();
+      if (error) throw error;
       // Only vectorise the observation when AI features are enabled
       if (obsText.trim() && aiEnabled !== false) {
         try {
           await upsertVector({
-            id:      ref.id,
+            id:      row.id,
             content: obsText.trim(),
             userId,
             childId,
@@ -208,17 +223,14 @@ export default function Home() {
     if (!data.description || !childId) return;
     setSavingMeal(true);
     try {
-      const userId = auth.currentUser.uid;
-      await addDoc(
-        collection(db, "users", userId, "children", childId, "mealLogs"),
-        {
-          timestamp: serverTimestamp(),
-          loggedBy: userId,
-          descriptionText: data.description,
-          carbsEstimate: data.carbs,
-          notes: data.notes,
-        }
-      );
+      const { error } = await supabase.from("meal_logs").insert({
+        child_id:         childId,
+        logged_by:        user.uid,
+        description_text: data.description,
+        carbs_estimate:   data.carbs,
+        notes:            data.notes,
+      });
+      if (error) throw error;
       setShowMealModal(false);
     } catch (err) {
       console.error("Error saving meal:", err);
@@ -231,17 +243,14 @@ export default function Home() {
     if (!data.value || !childId) return;
     setSavingGlucose(true);
     try {
-      const userId = auth.currentUser.uid;
-      await addDoc(
-        collection(db, "users", userId, "children", childId, "glucoseReadings"),
-        {
-          timestamp: serverTimestamp(),
-          loggedBy: userId,
-          value: data.value,
-          source: data.source,
-          notes: data.notes,
-        }
-      );
+      const { error } = await supabase.from("glucose_readings").insert({
+        child_id:  childId,
+        logged_by: user.uid,
+        value:     data.value,
+        source:    data.source,
+        notes:     data.notes,
+      });
+      if (error) throw error;
       setShowGlucoseModal(false);
     } catch (err) {
       console.error("Error saving glucose reading:", err);
@@ -268,6 +277,18 @@ export default function Home() {
     : tc === "warn"
     ? { title:"Snack window approaching", body:`${intervalMin - minElapsed} min until ${intervalMin}-minute mark. Start preparing.` }
     : { title:"On track", body:`Next snack in ~${intervalMin - minElapsed} min.` };
+
+  // Browser push notification on feed-timer state transitions
+  useEffect(() => {
+    if (tc === "ok" || !lastMealTime) { notifiedRef.current.key = null; return; }
+    const key = `${lastMealTime}:${tc}`;
+    if (notifiedRef.current.key === key) return;
+    notifiedRef.current.key = key;
+    const msg = tc === "urgent"
+      ? { title: "⚠️ Snack overdue", body: `${child?.name || "Your child"} is past the ${intervalMin}-minute feed window.` }
+      : { title: "Snack window approaching", body: `${intervalMin - minElapsed} min until the ${intervalMin}-minute mark for ${child?.name || "your child"}.` };
+    notify(msg.title, { body: msg.body, tag: "glycoguard-feed-timer" });
+  }, [tc, lastMealTime, intervalMin, minElapsed, child?.name, notify]);
 
   const glucoseMin = child?.glucoseTargetMin || 4.0;
   const glucoseMax = child?.glucoseTargetMax || 6.5;
@@ -305,6 +326,17 @@ export default function Home() {
             {alertType==="ok" ? "+ Meal" : "Log Meal"}
           </button>
         </div>
+
+        {/* Proactive alert — predicted reactive window */}
+        {aiEnabled !== false && proactiveAlert && (
+          <div style={{ ...s.alertBanner, ...s.alertWarning }}>
+            <div style={{ fontSize:22, flexShrink:0 }}>🔮</div>
+            <div style={{ flex:1 }}>
+              <div style={s.alertTitle}>{proactiveAlert.title}</div>
+              <div style={s.alertBody}>{proactiveAlert.body}</div>
+            </div>
+          </div>
+        )}
 
         {/* Live Status */}
         <div style={s.sectionHead}>

@@ -1,9 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import {
-  collection, query, orderBy, limit, where, getDocs, Timestamp,
-} from "firebase/firestore";
-import { db, auth } from "../firebase";
+import { supabase } from "../supabase";
+import { mapGlucoseReading, mapMealLog, mapSymptomEvent } from "../services/dbMappers";
 import { useChild } from "../hooks/useChild";
 import { useAI } from "../hooks/useAI";
 import { searchVectors } from "../services/vectorStore";
@@ -50,25 +48,20 @@ function suggestions(level, child) {
 // ── Firestore + Pinecone context assembly ─────────────────────────────────────
 
 async function assembleContext(child, childId, queryText) {
-  const userId    = auth.currentUser.uid;
+  const { data: { user } } = await supabase.auth.getUser();
+  const userId    = user.id;
   const interval  = child.mealIntervalMinutes || 120;
   const targetMin = child.glucoseTargetMin    || 4.0;
   const targetMax = child.glucoseTargetMax    || 6.5;
 
   // Live data — most recent meal + glucose
-  const [mealSnap, glucSnap] = await Promise.all([
-    getDocs(query(
-      collection(db, "users", userId, "children", childId, "mealLogs"),
-      orderBy("timestamp", "desc"), limit(1)
-    )),
-    getDocs(query(
-      collection(db, "users", userId, "children", childId, "glucoseReadings"),
-      orderBy("timestamp", "desc"), limit(1)
-    )),
+  const [mealRes, glucRes] = await Promise.all([
+    supabase.from("meal_logs").select("*").eq("child_id", childId).order("timestamp", { ascending: false }).limit(1),
+    supabase.from("glucose_readings").select("*").eq("child_id", childId).order("timestamp", { ascending: false }).limit(1),
   ]);
 
-  const lastMeal = mealSnap.empty ? null : { id: mealSnap.docs[0].id, ...mealSnap.docs[0].data() };
-  const rawGluc  = glucSnap.empty  ? null : { id: glucSnap.docs[0].id,  ...glucSnap.docs[0].data()  };
+  const lastMeal = mealRes.data?.length ? { id: mealRes.data[0].id, ...mapMealLog(mealRes.data[0]) } : null;
+  const rawGluc  = glucRes.data?.length ? { id: glucRes.data[0].id, ...mapGlucoseReading(glucRes.data[0]) } : null;
 
   const glucAge    = rawGluc?.timestamp
     ? Date.now() - rawGluc.timestamp.toDate().getTime() : Infinity;
@@ -83,23 +76,14 @@ async function assembleContext(child, childId, queryText) {
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - 14);
 
-  const [histGlucSnap, histMealSnap, histSympSnap] = await Promise.all([
-    getDocs(query(
-      collection(db, "users", userId, "children", childId, "glucoseReadings"),
-      where("timestamp", ">=", Timestamp.fromDate(cutoff)),
-      orderBy("timestamp", "desc")
-    )),
-    getDocs(query(
-      collection(db, "users", userId, "children", childId, "mealLogs"),
-      orderBy("timestamp", "desc"), limit(10)
-    )),
-    getDocs(query(
-      collection(db, "users", userId, "children", childId, "symptomEvents"),
-      orderBy("timestamp", "desc"), limit(10)
-    )),
+  const cutoffIso = cutoff.toISOString();
+  const [histGlucRes, histMealRes, histSympRes] = await Promise.all([
+    supabase.from("glucose_readings").select("*").eq("child_id", childId).gte("timestamp", cutoffIso).order("timestamp", { ascending: false }),
+    supabase.from("meal_logs").select("*").eq("child_id", childId).order("timestamp", { ascending: false }).limit(10),
+    supabase.from("symptom_events").select("*").eq("child_id", childId).order("timestamp", { ascending: false }).limit(10),
   ]);
 
-  const readings   = histGlucSnap.docs.map(d => d.data());
+  const readings   = (histGlucRes.data || []).map(mapGlucoseReading);
   const vals       = readings.map(r => r.value).filter(Boolean);
   const inRange    = vals.filter(v => v >= targetMin && v <= targetMax).length;
   const glucStats  = vals.length > 0 ? {
@@ -110,8 +94,8 @@ async function assembleContext(child, childId, queryText) {
     tir:   Math.round((inRange / vals.length) * 100),
   } : null;
 
-  const recentMeals = histMealSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-  const recentSymps = histSympSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+  const recentMeals = (histMealRes.data || []).map(r => ({ id: r.id, ...mapMealLog(r) }));
+  const recentSymps = (histSympRes.data || []).map(r => ({ id: r.id, ...mapSymptomEvent(r) }));
 
   // Pinecone context — non-fatal
   let pineconeChunks = [];

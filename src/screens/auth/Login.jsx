@@ -1,6 +1,5 @@
 import { useState } from "react";
-import { signInWithEmailAndPassword } from "firebase/auth";
-import { auth } from "../../firebase";
+import { supabase } from "../../supabase";
 import { useNavigate, Link } from "react-router-dom";
 import { t } from "../../styles/tokens";
 import GlycoGuardLogo from "../../components/GlycoGuardLogo";
@@ -16,7 +15,8 @@ export default function Login() {
     e.preventDefault();
     setError(""); setLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      const { error: authErr } = await supabase.auth.signInWithPassword({ email, password });
+      if (authErr) throw authErr;
       navigate("/");
     } catch (err) {
       setError("Invalid email or password.");

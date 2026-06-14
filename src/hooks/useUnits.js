@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
-import { doc, onSnapshot, updateDoc } from "firebase/firestore";
-import { db } from "../firebase";
+import { supabase } from "../supabase";
 import { useAuth } from "./useAuth";
 
 const MG_PER_MMOL = 18.0182;
@@ -11,17 +10,27 @@ export function useUnits() {
 
   useEffect(() => {
     if (!user) return;
-    const ref = doc(db, "users", user.uid);
-    return onSnapshot(ref, snap => {
-      const pref = snap.data()?.unitPreference;
-      if (pref) setUnitState(pref);
-    });
+
+    const load = async () => {
+      const { data } = await supabase.from("profiles").select("unit_preference").eq("id", user.uid).maybeSingle();
+      if (data?.unit_preference) setUnitState(data.unit_preference);
+    };
+    load();
+
+    const channel = supabase
+      .channel(`profile-units-${user.uid}`)
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "profiles", filter: `id=eq.${user.uid}` }, (payload) => {
+        if (payload.new?.unit_preference) setUnitState(payload.new.unit_preference);
+      })
+      .subscribe();
+
+    return () => supabase.removeChannel(channel);
   }, [user]);
 
   const setUnit = async (newUnit) => {
     if (!user) return;
     setUnitState(newUnit);
-    await updateDoc(doc(db, "users", user.uid), { unitPreference: newUnit });
+    await supabase.from("profiles").update({ unit_preference: newUnit }).eq("id", user.uid);
   };
 
   // mmol/L → display unit (number)

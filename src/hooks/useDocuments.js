@@ -1,53 +1,66 @@
 import { useState, useEffect } from "react";
-import { collection, query, orderBy, onSnapshot, doc, setDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
-import { db, auth } from "../firebase";
+import { supabase } from "../supabase";
+import { mapDocument } from "../services/dbMappers";
+import { useAuth } from "./useAuth";
 import { useChild } from "./useChild";
 import { extractTextFromPDF, chunkText } from "../services/pdfExtractor";
 import { upsertVector, deleteVector } from "../services/vectorStore";
 
 // Documents are stored in TWO places:
-// 1. Firestore — metadata + extracted text (filename, type, extractedText, createdAt)
+// 1. Postgres — metadata + extracted text (filename, type, extractedText, createdAt)
 // 2. Pinecone — extracted text embedding for AI retrieval
-// The Firestore doc ID is used as the Pinecone vector ID to keep them in sync.
+// The Postgres row ID is used as the Pinecone vector ID prefix to keep them in sync.
 
 export function useDocuments() {
+  const { user } = useAuth();
   const { childId } = useChild();
   const [documents, setDocuments] = useState([]);
   const [loading,   setLoading]   = useState(true);
 
   useEffect(() => {
     if (!childId) return;
-    const userId = auth.currentUser.uid;
-    const q = query(
-      collection(db, "users", userId, "children", childId, "documents"),
-      orderBy("createdAt", "desc")
-    );
-    return onSnapshot(q, snap => {
-      setDocuments(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+
+    const load = async () => {
+      const { data, error } = await supabase
+        .from("documents")
+        .select("*")
+        .eq("child_id", childId)
+        .order("created_at", { ascending: false });
+      if (!error) setDocuments((data || []).map(r => ({ id: r.id, ...mapDocument(r) })));
       setLoading(false);
-    });
+    };
+    load();
+
+    const channel = supabase
+      .channel(`documents-${childId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "documents", filter: `child_id=eq.${childId}` }, load)
+      .subscribe();
+
+    return () => supabase.removeChannel(channel);
   }, [childId]);
 
   const uploadDocument = async (file, type) => {
     if (!file || !childId) return;
-    const userId = auth.currentUser.uid;
+    const userId = user.uid;
 
-    // Extract text first — fail fast before touching Firestore
+    // Extract text first — fail fast before touching the database
     const extractedText = await extractTextFromPDF(file);
     const chunks = chunkText(extractedText);
 
-    // Write Firestore record
-    const docRef = doc(collection(db, "users", userId, "children", childId, "documents"));
-    const docId  = docRef.id;
-
-    await setDoc(docRef, {
-      filename:      file.name,
-      type,
-      extractedText,
-      chunkCount:    chunks.length,
-      createdAt:     serverTimestamp(),
-      loggedBy:      userId,
-    });
+    const { data: row, error } = await supabase
+      .from("documents")
+      .insert({
+        filename:       file.name,
+        type,
+        extracted_text: extractedText,
+        chunk_count:    chunks.length,
+        logged_by:      userId,
+        child_id:       childId,
+      })
+      .select()
+      .single();
+    if (error) throw error;
+    const docId = row.id;
 
     // Embed and upsert each chunk to Pinecone — non-fatal
     try {
@@ -65,17 +78,16 @@ export function useDocuments() {
         });
       }
     } catch (err) {
-      console.error("Vector upsert failed (document saved to Firestore):", err);
+      console.error("Vector upsert failed (document saved to Postgres):", err);
     }
 
     return docId;
   };
 
   const removeDocument = async (docId) => {
-    const userId = auth.currentUser.uid;
     const record = documents.find(d => d.id === docId);
 
-    await deleteDoc(doc(db, "users", userId, "children", childId, "documents", docId));
+    await supabase.from("documents").delete().eq("id", docId);
 
     try {
       if (record?.chunkCount) {

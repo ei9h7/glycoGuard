@@ -1,8 +1,5 @@
-import {
-  collection, query, where, orderBy, getDocs, getDoc,
-  doc, Timestamp, limit,
-} from "firebase/firestore";
-import { db } from "../firebase";
+import { supabase } from "../supabase";
+import { mapGlucoseReading, mapMealLog, mapSymptomEvent } from "./dbMappers";
 import { generatePatterns } from "./patternEngine";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -50,17 +47,15 @@ function fmtDateTime(date) {
  * @returns {Promise<{type, child, dateRange, stats, dailyData, generatedAt}>}
  */
 export async function generateGlucoseReport(userId, childId, child, startDate, endDate) {
-  const startTs = Timestamp.fromDate(startDate);
-  const endTs   = Timestamp.fromDate(endDate);
+  const { data } = await supabase
+    .from("glucose_readings")
+    .select("*")
+    .eq("child_id", childId)
+    .gte("timestamp", startDate.toISOString())
+    .lte("timestamp", endDate.toISOString())
+    .order("timestamp", { ascending: true });
 
-  const snap = await getDocs(query(
-    collection(db, "users", userId, "children", childId, "glucoseReadings"),
-    where("timestamp", ">=", startTs),
-    where("timestamp", "<=", endTs),
-    orderBy("timestamp", "asc"),
-  ));
-
-  const readings  = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  const readings  = (data || []).map(r => ({ id: r.id, ...mapGlucoseReading(r) }));
   const vals      = readings.map(r => r.value).filter(v => v != null && v > 0);
 
   const targetMin = child.glucoseTargetMin || 4.0;
@@ -126,16 +121,18 @@ export async function generateGlucoseReport(userId, childId, child, startDate, e
  * @returns {Promise<{type, child, patterns, generatedAt}>}
  */
 export async function generatePatternReport(userId, childId, child) {
-  const summaryRef  = doc(db, "users", userId, "children", childId, "patternSummary", "latest");
-  const summarySnap = await getDoc(summaryRef);
+  const { data: summary } = await supabase
+    .from("pattern_summaries")
+    .select("*")
+    .eq("child_id", childId)
+    .maybeSingle();
 
   let patterns    = [];
   let generatedAt = null;
 
-  if (summarySnap.exists()) {
-    const data  = summarySnap.data();
-    patterns    = data.patterns    || [];
-    generatedAt = toDate(data.generatedAt);
+  if (summary) {
+    patterns    = summary.patterns || [];
+    generatedAt = toDate(summary.generated_at);
   }
 
   // Refresh if stale (>24 hours) or absent
@@ -168,30 +165,19 @@ export async function generatePatternReport(userId, childId, child) {
  * @returns {Promise<{type, child, dateRange, glucoseStats, dailyData, patterns, meals, symptoms, generatedAt}>}
  */
 export async function generateFullReport(userId, childId, child, startDate, endDate) {
-  const startTs = Timestamp.fromDate(startDate);
-  const endTs   = Timestamp.fromDate(endDate);
-
-  const [glucoseReport, patternReport, mealSnap, sympSnap] = await Promise.all([
+  const [glucoseReport, patternReport, mealRes, sympRes] = await Promise.all([
     generateGlucoseReport(userId, childId, child, startDate, endDate),
     generatePatternReport(userId, childId, child),
-    getDocs(query(
-      collection(db, "users", userId, "children", childId, "mealLogs"),
-      where("timestamp", ">=", startTs),
-      where("timestamp", "<=", endTs),
-      orderBy("timestamp", "desc"),
-      limit(50),
-    )),
-    getDocs(query(
-      collection(db, "users", userId, "children", childId, "symptomEvents"),
-      where("timestamp", ">=", startTs),
-      where("timestamp", "<=", endTs),
-      orderBy("timestamp", "desc"),
-      limit(50),
-    )),
+    supabase.from("meal_logs").select("*").eq("child_id", childId)
+      .gte("timestamp", startDate.toISOString()).lte("timestamp", endDate.toISOString())
+      .order("timestamp", { ascending: false }).limit(50),
+    supabase.from("symptom_events").select("*").eq("child_id", childId)
+      .gte("timestamp", startDate.toISOString()).lte("timestamp", endDate.toISOString())
+      .order("timestamp", { ascending: false }).limit(50),
   ]);
 
-  const meals    = mealSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-  const symptoms = sympSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+  const meals    = (mealRes.data || []).map(r => ({ id: r.id, ...mapMealLog(r) }));
+  const symptoms = (sympRes.data || []).map(r => ({ id: r.id, ...mapSymptomEvent(r) }));
 
   return {
     type: "full",

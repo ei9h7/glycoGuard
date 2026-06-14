@@ -1,11 +1,10 @@
 import { useState, useRef } from "react";
-import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
-import { signOut } from "firebase/auth";
-import { db, auth } from "../firebase";
+import { supabase } from "../supabase";
 import { useChild } from "../hooks/useChild";
 import { useAuth } from "../hooks/useAuth";
 import { useUnits } from "../hooks/useUnits";
 import { useAI } from "../hooks/useAI";
+import { useNotifications } from "../hooks/useNotifications";
 import { usePreferenceNotes } from "../hooks/usePreferenceNotes";
 import { useDocuments } from "../hooks/useDocuments";
 import { t, shadows } from "../styles/tokens";
@@ -35,6 +34,13 @@ export default function Settings() {
   const { child, childId } = useChild();
   const { unit, setUnit } = useUnits();
   const { aiEnabled, setAIEnabled } = useAI();
+  const {
+    supported: notifSupported,
+    permission: notifPermission,
+    enabled: notifEnabled,
+    enable: enableNotifications,
+    disable: disableNotifications,
+  } = useNotifications();
   const { notes, loading: notesLoading, addNote, removeNote } = usePreferenceNotes();
   const { documents, loading: docsLoading, uploadDocument, removeDocument } = useDocuments();
 
@@ -78,19 +84,20 @@ export default function Settings() {
     if (!form.name.trim()) { setError("Name is required."); return; }
     setSaving(true); setError("");
     try {
-      const userId = auth.currentUser.uid;
+      const userId = user.uid;
       const coParentEmail = form.coParentEmail.toLowerCase().trim();
-      await updateDoc(doc(db, "users", userId, "children", childId), {
-        name:                form.name.trim(),
-        dob:                 form.dob,
-        diagnosis:           form.diagnosis,
-        glucoseTargetMin:    parseFloat(form.glucoseMin),
-        glucoseTargetMax:    parseFloat(form.glucoseMax),
-        mealIntervalMinutes: parseInt(form.mealInterval),
-        cgmDevice:           form.cgmDevice,
-        coParentEmail,
-        updatedAt:           serverTimestamp(),
-      });
+      const { error: updateErr } = await supabase.from("children").update({
+        name:                  form.name.trim(),
+        dob:                   form.dob,
+        diagnosis:             form.diagnosis,
+        glucose_target_min:    parseFloat(form.glucoseMin),
+        glucose_target_max:    parseFloat(form.glucoseMax),
+        meal_interval_minutes: parseInt(form.mealInterval),
+        cgm_device:            form.cgmDevice,
+        co_parent_email:       coParentEmail || null,
+        updated_at:            new Date().toISOString(),
+      }).eq("id", childId);
+      if (updateErr) throw updateErr;
       runCoParentMatch(userId, childId, { ...child, coParentEmail }).catch(console.error);
       setEditing(false);
       setForm(null);
@@ -105,7 +112,7 @@ export default function Settings() {
   };
 
   const handleSignOut = async () => {
-    await signOut(auth);
+    await supabase.auth.signOut();
   };
 
   const handleFileChange = async (type, e) => {
@@ -417,6 +424,38 @@ export default function Settings() {
         </div>
       </div>
 
+      {/* Notifications */}
+      <div style={s.sectionHead}>
+        <span style={s.sectionTitle}>Notifications</span>
+      </div>
+
+      <div style={{ padding: "0 16px" }}>
+        <div style={s.card}>
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+            <span style={{ fontSize: 16, marginTop: 2 }}>🔔</span>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 4 }}>Feed timer reminders</div>
+              <div style={{ fontSize: 12, color: t.textMuted, lineHeight: 1.5 }}>
+                {!notifSupported
+                  ? "Browser notifications aren't supported on this device."
+                  : notifPermission === "denied"
+                  ? "Notifications are blocked for this site — enable them in your browser settings."
+                  : "Get a browser notification when the feed window is approaching or overdue"}
+              </div>
+            </div>
+            {notifSupported && notifPermission !== "denied" && (
+              <button
+                style={{ ...s.toggleTrack, background: notifEnabled ? t.pink : t.border }}
+                onClick={() => (notifEnabled ? disableNotifications() : enableNotifications())}
+                aria-label={notifEnabled ? "Disable feed timer reminders" : "Enable feed timer reminders"}
+              >
+                <div style={{ ...s.toggleThumb, transform: notifEnabled ? "translateX(20px)" : "translateX(2px)" }} />
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
       {/* Account section */}
       <div style={s.sectionHead}>
         <span style={s.sectionTitle}>Account</span>
@@ -445,9 +484,7 @@ export default function Settings() {
 
       <div style={{ padding:"0 16px", display:"flex", flexDirection:"column", gap:10 }}>
         {[
-          ["👨‍👩‍👧", "Co-parent sharing",     "Invite a co-parent and set data permissions"],
           ["➕",    "Add another child",     "Support for multiple children"],
-          ["🔔",    "Notification settings", "Customise alerts and reminders"],
         ].map(([icon, title, desc]) => (
           <div key={title} style={{ ...s.card, opacity:0.5 }}>
             <div style={s.detailRow}>

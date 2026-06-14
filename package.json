@@ -9,8 +9,10 @@
     "lint": "eslint src --ext js,jsx --report-unused-disable-directives --max-warnings 0"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.107.0",
     "claude": "^0.1.1",
     "firebase": "^10.12.0",
+    "jspdf": "^4.2.1",
     "pdfjs-dist": "^5.7.284",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",

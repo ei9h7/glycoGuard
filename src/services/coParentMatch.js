@@ -1,5 +1,4 @@
-import { collectionGroup, query, where, getDocs, doc, updateDoc } from 'firebase/firestore';
-import { db, auth } from '../firebase';
+import { supabase } from '../supabase';
 
 /*
  * runCoParentMatch — links two parents who are both managing the same child in GlycoGuard.
@@ -7,67 +6,55 @@ import { db, auth } from '../firebase';
  * Matching logic:
  *   Current user sets child.coParentEmail → the other parent's email.
  *   The other parent sets their child.coParentEmail → current user's email.
- *   When both sides have set the reciprocal email, this function finds them and connects the docs.
+ *   When both sides have set the reciprocal email, this function finds them and connects the rows.
  *
- * Firestore collection group query required.
- * Create a composite index in the Firebase Console:
- *   Collection group: children
- *   Fields:          dob ASC, coParentEmail ASC
- *   Query scope:     Collection group
- *
- * Firestore does not support case-insensitive string matching, so name equality
- * is checked in JavaScript after filtering by dob and coParentEmail.
+ * Postgres RLS does not support case-insensitive string matching at the policy
+ * level, so name equality is checked in JavaScript after filtering by dob and
+ * co_parent_email (the "co-parent match read" policy makes the other parent's
+ * row visible once they've named this user's email as their co-parent).
  */
 export async function runCoParentMatch(userId, childId, child) {
   if (!child?.coParentEmail) return null;
 
-  const currentEmail = auth.currentUser?.email?.toLowerCase();
+  const { data: { user } } = await supabase.auth.getUser();
+  const currentEmail = user?.email?.toLowerCase();
   if (!currentEmail) return null;
 
-  const q = query(
-    collectionGroup(db, 'children'),
-    where('dob', '==', child.dob),
-    where('coParentEmail', '==', currentEmail)
+  const { data: candidates, error } = await supabase
+    .from('children')
+    .select('*')
+    .eq('dob', child.dob)
+    .eq('co_parent_email', currentEmail);
+
+  if (error) {
+    console.error('runCoParentMatch query error:', error);
+    return null;
+  }
+
+  const childNameLower = child.name?.toLowerCase().trim() ?? '';
+  const match = candidates?.find(c =>
+    c.owner_id !== userId && c.name?.toLowerCase().trim() === childNameLower
   );
 
-  const snap = await getDocs(q);
-  const childNameLower = child.name?.toLowerCase().trim() ?? '';
-
-  let matchDoc = null;
-  for (const d of snap.docs) {
-    // Path: users/{uid}/children/{childId} — segment index 1 is the other user's uid
-    const otherUserId = d.ref.path.split('/')[1];
-    if (otherUserId === userId) continue;
-
-    if (d.data().name?.toLowerCase().trim() === childNameLower) {
-      matchDoc = d;
-      break;
-    }
-  }
-
-  const currentChildRef = doc(db, 'users', userId, 'children', childId);
-
-  if (matchDoc) {
-    const otherUserId  = matchDoc.ref.path.split('/')[1];
-    const otherChildId = matchDoc.id;
-
-    await Promise.all([
-      updateDoc(currentChildRef, {
-        coParentUid:     otherUserId,
-        coParentChildId: otherChildId,
-        coParentStatus:  'connected',
-      }),
-      updateDoc(matchDoc.ref, {
-        coParentUid:     userId,
-        coParentChildId: childId,
-        coParentStatus:  'connected',
-      }),
+  if (match) {
+    const [a, b] = await Promise.all([
+      supabase.from('children').update({
+        co_parent_uid: match.owner_id,
+        co_parent_child_id: match.id,
+        co_parent_status: 'connected',
+      }).eq('id', childId),
+      supabase.from('children').update({
+        co_parent_uid: userId,
+        co_parent_child_id: childId,
+        co_parent_status: 'connected',
+      }).eq('id', match.id),
     ]);
+    if (a.error || b.error) console.error('runCoParentMatch link error:', a.error || b.error);
 
-    return { matched: true, coParentUid: otherUserId, coParentChildId: otherChildId };
+    return { matched: true, coParentUid: match.owner_id, coParentChildId: match.id };
   }
 
-  await updateDoc(currentChildRef, { coParentStatus: 'pending' });
+  await supabase.from('children').update({ co_parent_status: 'pending' }).eq('id', childId);
   return { matched: false };
 }
 

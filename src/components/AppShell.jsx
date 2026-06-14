@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Outlet, NavLink, useLocation } from "react-router-dom";
-import { doc, getDoc } from "firebase/firestore";
-import { db } from "../firebase";
+import { supabase } from "../supabase";
 import { useAuth } from "../hooks/useAuth";
 import { useChild } from "../hooks/useChild";
 import { useAI } from "../hooks/useAI";
@@ -110,11 +109,10 @@ export default function AppShell() {
     const SIX_HOURS = 6 * 60 * 60 * 1000;
     (async () => {
       try {
-        const ref  = doc(db, "users", user.uid, "children", childId, "patternSummary", "latest");
-        const snap = await getDoc(ref);
-        if (snap.exists()) {
-          const ts = snap.data().generatedAt?.toDate?.();
-          if (ts && Date.now() - ts.getTime() < SIX_HOURS) return;
+        const { data } = await supabase.from("pattern_summaries").select("generated_at").eq("child_id", childId).maybeSingle();
+        if (data?.generated_at) {
+          const ts = new Date(data.generated_at);
+          if (Date.now() - ts.getTime() < SIX_HOURS) return;
         }
         generatePatterns(user.uid, childId, child).catch(e =>
           console.warn("Background pattern refresh failed:", e.message)

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
-import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
-import { db, auth } from "../firebase";
+import { supabase } from "../supabase";
+import { useAuth } from "../hooks/useAuth";
 import { useChild } from "../hooks/useChild";
 import { t, shadows } from "../styles/tokens";
 
@@ -15,6 +15,7 @@ const CATEGORIES = [
 ];
 
 export default function Sharing() {
+  const { user } = useAuth();
   const { child, childId } = useChild();
   const navigate = useNavigate();
 
@@ -27,20 +28,20 @@ export default function Sharing() {
   useEffect(() => {
     if (!isConnected || !child?.coParentUid || !child?.coParentChildId) return;
     setCoParentLoading(true);
-    getDoc(doc(db, "users", child.coParentUid, "children", child.coParentChildId))
-      .then(snap => setCoParentChild(snap.exists() ? snap.data() : null))
+    supabase.from("children").select("*").eq("id", child.coParentChildId).maybeSingle()
+      .then(({ data }) => setCoParentChild(data ? {
+        name: data.name,
+        sharing: data.sharing,
+      } : null))
       .catch(console.error)
       .finally(() => setCoParentLoading(false));
   }, [child?.coParentUid, child?.coParentChildId, isConnected]);
 
   const handleToggle = async (category) => {
-    if (!childId) return;
-    const userId  = auth.currentUser.uid;
+    if (!childId || !user) return;
     const current = child?.sharing?.[category] ?? false;
-    await updateDoc(
-      doc(db, "users", userId, "children", childId),
-      { [`sharing.${category}`]: !current }
-    ).catch(console.error);
+    const nextSharing = { ...(child?.sharing || {}), [category]: !current };
+    await supabase.from("children").update({ sharing: nextSharing }).eq("id", childId).catch(console.error);
   };
 
   if (!child) return (
